@@ -53,11 +53,13 @@ async function performLogin(username, password) {
             localStorage.setItem('token', data.token);
             const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
             loginModal.hide();
+            Swal.fire('Bienvenido!', username, 'success');
         } else {
-            displayToast('Usuario o contraseña incorrectos');
+            Swal.fire('Error', 'Usuario o contraseña incorrectos', 'warning');
         }
     } catch (error) {
         console.error('Login failed:', error);
+        Swal.fire('Error', 'El intento de login fallo', 'error')
     }
 }
 
@@ -124,10 +126,18 @@ function initializeEmployeeView() {
 
     newEmployeeBtn.addEventListener('click', () => handleNewEmployee());
 
-    // Escucha el evento submit del formulario para prevenir la recarga de la página
     employeeForm.addEventListener('submit', function(event) {
         event.preventDefault(); // Prevenir la recarga
-        createEmployee(); // Llama a la función para crear el empleado
+
+        const action = event.submitter.getAttribute('data-action');
+        console.log(action);
+        if (action === 'editEmployee') {
+          updateEmployee();
+        } else {
+          createEmployee();     
+        }
+
+        
     });
 
     async function handleNewEmployee() {
@@ -170,21 +180,66 @@ async function createEmployee() {
         });
 
         if (!response.ok) {
-            const errorJson = await response.json(); // Obtener el cuerpo de la respuesta como JSON
-            const errorMessage = errorJson.result || 'Ocurrió un error inesperado'; // Capturar el mensaje del campo `result`
+            const errorJson = await response.json(); 
+            const errorMessage = errorJson.result || 'Ocurrió un error inesperado'; 
             throw new Error(errorMessage);
         }
 
         const employeeModal = bootstrap.Modal.getInstance(employeeModalElement);
         employeeModal.hide();
         loadEmployees();
-        alert("Empleado creado exitosamente!");
+        Swal.fire('Resultado', 'Empleado creado exitosamente', 'success');
     } catch (error) {
         console.error('Error detallado:', error);
+        Swal.fire('Error al guardar el Empleado', error.message, 'error');
+    }
+}
 
-        // Mostrar el mensaje de error con título y formato mejorado
-        const alertMessage = `Error al guardar el empleado:\n\nDetalles:\n${error.message}`;
-        alert(alertMessage); // Puedes usar un modal o librería como SweetAlert para mejorar la visualización
+async function updateEmployee() {
+    const subscriptionForm = document.getElementById('memberForm');
+    if (!subscriptionForm.checkValidity()) {
+        subscriptionForm.classList.add('was-validated');
+        return;
+    }
+
+    const employeeModalElement = document.getElementById('memberModal');
+    const employeeData = {
+        id: document.getElementById('employeeId').value,
+        firstName: document.getElementById('firstName').value,
+        lastName: document.getElementById('lastName').value,
+        genderType: document.getElementById('genderType').value,
+        documentType: document.getElementById('documentType').value,
+        documentNumber: document.getElementById('documentNumber').value,
+        dateOfBirth: formatDate(document.getElementById('dateOfBirth').value),
+        email: document.getElementById('email').value,
+        address: document.getElementById('address').value,
+        cellPhone: document.getElementById('phoneNumber').value,
+        cuil: document.getElementById('cuil').value,
+        cityId: document.getElementById('cityType').value
+    };
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${BASE_URL}/v1/api/employee`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(employeeData),
+        });
+
+        if (!response.ok) {
+            const errorJson = await response.json(); 
+            const errorMessage = errorJson.result || 'Ocurrió un error inesperado'; 
+            throw new Error(errorMessage);
+        }
+
+        const employeeModal = bootstrap.Modal.getInstance(employeeModalElement);
+        employeeModal.hide();
+        loadEmployees();
+       Swal.fire('Resultado', 'Empleado actualizado exitosamente', 'success');
+    } catch (error) {
+        console.error('Error detallado:', error);
+        Swal.fire('Error al actualizar el Empleado', error.message, 'error');
     }
 }
 
@@ -193,9 +248,8 @@ async function createEmployee() {
 async function loadEmployees() {
     try {
         const token = localStorage.getItem('token');
-        // Verifica si la tabla ya fue inicializada como DataTable
         if ($.fn.DataTable.isDataTable('#membersTable')) {
-            $('#membersTable').DataTable().destroy(); // Destruye la tabla existente
+            $('#membersTable').DataTable().destroy(); 
         }
         const response = await fetch(`${BASE_URL}/v1/api/employee/all`, {
             method: 'GET',
@@ -206,7 +260,7 @@ async function loadEmployees() {
         const members = await response.json();
 
         const tableBody = document.querySelector('#membersTable tbody');
-        tableBody.innerHTML = ''; // Limpiar el cuerpo de la tabla
+        tableBody.innerHTML = ''; 
 
         members.forEach(member => {
             const row = document.createElement('tr');
@@ -231,34 +285,29 @@ async function loadEmployees() {
                 });
             });
 
-        // Vuelve a inicializar DataTable
         const dataTable = $('#membersTable').DataTable();
         fetchStates();
         fetchGenderType();
         fetchDocumentsType();
-
-
         document.getElementById('stateType').addEventListener('change', async function() {
         const stateId = this.value;
         await fetchCitiesByState(stateId);
     });
 
-
     } catch (error) {
-        console.error('Error al cargar los miembros:', error);
+        Swal.fire('Error al cargar los miembros', error, 'error');
     }
 
 }
 
 function fillAndShowModal(member) {
-    console.log(member);
-    // Campos de solo lectura (creación y modificación)
+    document.getElementById('employeeId').value = member.id || '-';
+
     document.getElementById('createdAt').value = member.createdAt || '-';
     document.getElementById('createdBy').value = member.createdBy || '-';
     document.getElementById('updatedAt').value = member.updatedAt || '-';
     document.getElementById('updatedBy').value = member.updatedBy || '-';
 
-    // Llenar los campos de datos editables
     document.getElementById('firstName').value = member.firstName || '';
     document.getElementById('lastName').value = member.lastName || '';
     document.getElementById('documentNumber').value = member.documentNumber || '';
@@ -268,7 +317,6 @@ function fillAndShowModal(member) {
     document.getElementById('cp').value = member.zipCode || '';
     document.getElementById('cuil').value = member.cuil || '';
 
-    // Asignar los valores al select (género, tipo de documento, estado y ciudad)
     document.getElementById('genderType').value = member.genderType || '';
     document.getElementById('documentType').value = member.documentType || '';
     document.getElementById('stateType').value = member.stateId || '';
@@ -314,6 +362,7 @@ async function fetchStates() {
         });
     } catch (error) {
         console.error('Error fetching states:', error);
+        Swal.fire('Error fetching states', error, 'error');
     }
 }
 
@@ -338,13 +387,12 @@ async function fetchCitiesByState(stateId) {
                 cityTypeSelect.appendChild(option);
             });
         } else {
-            console.error('Error fetching cities:', response.statusText);
+            Swal.fire('Error cargando Provincias', '', 'error');
         }
     } catch (error) {
-        console.error('Error fetching cities:', error);
+       Swal.fire('Error cargando Provincias', error, 'error');
     }
 }
-
 
 async function fetchGenderType() {
     try {
@@ -367,6 +415,7 @@ async function fetchGenderType() {
         });
     } catch (error) {
         console.error('Error fetching genderType:', error);
+         Swal.fire('Error cargando Tipos de Géneros', error, 'error');
     }
 }
 
@@ -391,6 +440,7 @@ async function fetchDocumentsType() {
         });
     } catch (error) {
         console.error('Error fetching documentType:', error);
+        Swal.fire('Error cargando Tipos de Documento', error, 'error');
     }
 }
 
