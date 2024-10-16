@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/dataTables.bootstrap5.min.css">
 </head>
 <body>
-    Registro Empleados
+<h1 class="text-center mt-4 mb-3 border-bottom pb-2">Registro de Empleados</h1>
     <!-- Contenido de Registro de Socios -->
     <div class="container mt-5">
         <div class="row justify-content-center">
@@ -48,42 +48,26 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="memberForm" class="row g-3">
-                    <div class="col-md-8">
+                <form id="memberForm">
+ 
                         <div class="row g-2">
 
-                            <div class="col-md-6">
+                            <div class="col-md-6 edit-only">
                                 <label for="firstName" class="form-label">Fecha creación</label>
-                                <input type="text" readonly class="form-control" id="createdAt">
+                                <input type="text" readonly class="form-control" id="createdAt" style="background-color: #e9ecef; border-color: #ced4da; color: #6c757d; pointer-events: none;">
                                 <input type="text" readonly class="form-control" style="display: none;" id="employeeId">
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-6 edit-only">
                                 <label for="firstName" class="form-label">Usuario carga</label>
-                                <input type="text" readonly class="form-control" id="createdBy">
+                                <input type="text" readonly class="form-control" id="createdBy" style="background-color: #e9ecef; border-color: #ced4da; color: #6c757d; pointer-events: none;">
                             </div>
-                             <div class="col-md-6">
+                             <div class="col-md-6 edit-only">
                                 <label for="firstName" class="form-label">Fecha Modificacion</label>
-                                <input type="text" readonly class="form-control" id="updatedAt">
+                                <input type="text" readonly class="form-control" id="updatedAt" style="background-color: #e9ecef; border-color: #ced4da; color: #6c757d; pointer-events: none;">
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-6 edit-only">
                                 <label for="firstName" class="form-label">Usuario mofificación</label>
-                                <input type="text" readonly class="form-control" id="updatedBy">
-                            </div>
-                            <div class="col-md-6">
-                                <label for="genderType" class="form-label">Género</label>
-                                <select class="form-control" id="genderType" required>
-                                    <option value="" disabled selected>Selecciona género</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="documentType" class="form-label">Tipo de Documento</label>
-                                <select class="form-control" id="documentType" required>
-                                    <option value="" disabled selected>Selecciona tipo de documento</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="documentNumber" class="form-label">Número de Documento</label>
-                                <input type="text" class="form-control" id="documentNumber" required pattern="^[0-9]+$" inputmode="numeric" >
+                                <input type="text" readonly class="form-control" id="updatedBy" style="background-color: #e9ecef; border-color: #ced4da; color: #6c757d; pointer-events: none;">
                             </div>
                             <div class="col-md-6">
                                 <label for="firstName" class="form-label">Nombre</label>
@@ -94,8 +78,24 @@
                                 <input type="text" class="form-control" id="lastName" required>
                             </div>
                             <div class="col-md-6">
+                                <label for="genderType" class="form-label">Género</label>
+                                <select class="form-control" id="genderType" required>
+                                    <option value="" disabled selected>Selecciona género</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
                                 <label for="dateOfBirth" class="form-label">Fecha de Nacimiento</label>
-                                <input type="date" class="form-control" id="dateOfBirth" required>
+                                <input type="date" class="form-control" id="dateOfBirth">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="documentType" class="form-label">Tipo de Documento</label>
+                                <select class="form-control" id="documentType" required>
+                                    <option value="" disabled selected>Selecciona tipo de documento</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="documentNumber" class="form-label">Número de Documento</label>
+                                <input type="text" class="form-control" id="documentNumber" required pattern="^[0-9]+$" inputmode="numeric" >
                             </div>
                             <div class="col-md-6">
                                 <label for="email" class="form-label">Email</label>
@@ -130,14 +130,15 @@
                                 <input type="text" class="form-control" id="cuil" required>
                             </div>
                         </div>
-                    </div>
+
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <button type="submit" id="saveEmployee" class="btn btn-primary" data-action="saveEmployee" form="memberForm">Guardar</button>
-                <button type="submit" id="editEmployee" class="btn btn-success" data-action="editEmployee" style="display: none;" form="memberForm">Editar</button>
-            </div>
+<div class="modal-footer d-flex justify-content-end gap-2">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+    <button type="submit" id="saveEmployee" class="btn btn-primary" data-action="saveEmployee" form="memberForm">Guardar</button>
+    <button type="submit" id="editEmployee" class="btn btn-success" data-action="editEmployee" style="display: none;" form="memberForm">Editar</button>
+</div>
+
         </div>
     </div>
 </div>
