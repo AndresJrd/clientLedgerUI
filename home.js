@@ -993,6 +993,10 @@ function initializeConsortiumView() {
     }
 
     async function loadConsortia() {
+        if ($.fn.DataTable.isDataTable('#consortiumTable')) {
+            $('#consortiumTable').DataTable().clear().destroy();
+        }
+        
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${BASE_URL}/v1/api/consortium/all`, {
@@ -1015,6 +1019,8 @@ function initializeConsortiumView() {
                      <td>${consortium.stateName}</td>
                 </tr>
             `).join('');
+
+
 
 
                 $('#consortiumTable').DataTable({
@@ -1042,7 +1048,7 @@ function initializeConsortiumView() {
         });
             
 
-               $("#cuit").inputmask("99-99999999-9"); 
+            $("#cuit").inputmask("99-99999999-9"); 
             document.querySelectorAll('.bi-search').forEach((icon, index) => {
                 icon.addEventListener('click', () => fillAndShowModalConsortium(consortia[index]));
             });
