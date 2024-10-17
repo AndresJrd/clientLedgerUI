@@ -54,6 +54,7 @@ async function performLogin(username, password) {
             const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
             loginModal.hide();
             Swal.fire('Bienvenido!', username, 'success');
+            showUserInfo(username);
         } else {
             Swal.fire('Error', 'Usuario o contraseña incorrectos', 'warning');
         }
@@ -63,6 +64,14 @@ async function performLogin(username, password) {
     }
 }
 
+function showUserInfo(email) {
+    const userInfo = document.getElementById('user-info');
+    const userEmailSpan = document.getElementById('user-email');
+    
+    userEmailSpan.textContent = email + '  | ';
+    userInfo.style.display = 'flex'; // Asegura que el contenedor sea visible
+}
+
 function loadContent(contentId) {
     const contentMapping = {
         'bcra': 'bcra.html',
@@ -70,8 +79,8 @@ function loadContent(contentId) {
         'registroEmpleados': 'registroEmpleados.html',
         'consorcios': 'consorcios.html',
         'registroCategorias': 'registroCategorias.html',
-        'registroRoles': 'registroRoles.html',
         'registroFunciones': 'registroFunciones.html',
+        'registroModificadorSalarial': 'registroModificadorSalarial.html',
         'registroPlanillas': 'registroPlanillas.html'
     };
     const url = contentMapping[contentId];
@@ -91,15 +100,19 @@ function loadContent(contentId) {
 
             }
            if(contentId === 'consorcios') {
+            initializeConsortiumView();
 
            }
            if(contentId === 'registroCategorias') {
 
            }
-           if(contentId === 'registroRoles') {
-
-           } 
            if(contentId === 'registroFunciones') {
+                initializeRoleView();
+
+           }
+           if(contentId === 'registroModificadorSalarial') {
+            initializeModifierView();
+
 
            }          
            if(contentId === 'registroPlanillas') {
@@ -143,6 +156,10 @@ function initializeEmployeeView() {
     async function handleNewEmployee() {
         employeeForm.reset();
         $("#cuil").inputmask("99-99999999-9"); 
+        const editOnlyFields = document.querySelectorAll('.edit-only');
+         editOnlyFields.forEach(field => {
+            field.style.display ='none';
+        });
         employeeModal.show();
         document.getElementById('editEmployee').style.display = 'none';
         document.getElementById('saveEmployee').style.display = 'inline-block';
@@ -284,6 +301,29 @@ async function loadEmployees() {
                     fillAndShowModal(member);
                 });
             });
+                $('#membersTable').DataTable({
+            language: {
+                processing: "Procesando...",
+                search: "Buscar:",
+                lengthMenu: "Mostrar _MENU_ registros",
+                info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                infoFiltered: "(filtrado de _MAX_ registros totales)",
+                loadingRecords: "Cargando...",
+                zeroRecords: "No se encontraron resultados",
+                emptyTable: "No hay datos disponibles en la tabla",
+                paginate: {
+                    first: "Primero",
+                    previous: "Anterior",
+                    next: "Siguiente",
+                    last: "Último"
+                },
+                aria: {
+                    sortAscending: ": activar para ordenar la columna ascendente",
+                    sortDescending: ": activar para ordenar la columna descendente"
+                }
+            }
+        });
 
         const dataTable = $('#membersTable').DataTable();
         fetchStates();
@@ -337,6 +377,12 @@ function fillAndShowModal(member) {
 
    document.getElementById('editEmployee').style.display = 'inline-block';
    document.getElementById('saveEmployee').style.display = 'none';
+        const editOnlyFields = document.querySelectorAll('.edit-only');
+         editOnlyFields.forEach(field => {
+            field.style.display ='block' ;
+        });
+
+
     // Mostrar el modal
     $('#memberModal').modal('show');
 }
@@ -466,7 +512,590 @@ function formatDate(dateString) {
     return `${yyyy}-${mm}-${dd}T00:00:00`;
 }
    
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                               ROLS
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+function initializeRoleView() {
+    const newRoleBtn = document.getElementById('newRoleBtn');
+    const roleForm = document.getElementById('roleForm');
+    const roleModal = new bootstrap.Modal(document.getElementById('roleModal'));
+
+    newRoleBtn.addEventListener('click', handleNewRole);
+
+    roleForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const action = event.submitter.getAttribute('data-action');
+        console.log(action);
+        if (action === 'editRole') {
+            updateRole();
+        } else {
+            createRole();
+        }
+    });
+
+    function handleNewRole() {
+        roleForm.reset();
+        document.querySelectorAll('.edit-only').forEach(field => field.style.display = 'none');
+        roleModal.show();
+        document.getElementById('editRole').style.display = 'none';
+        document.getElementById('saveRole').style.display = 'inline-block';
+    }
+
+    async function createRole() {
+        if (!roleForm.checkValidity()) {
+            roleForm.classList.add('was-validated');
+            return;
+        }
+
+        const roleData = {
+            name: document.getElementById('roleName').value,
+            description: document.getElementById('roleDescription').value
+        };
+
+        await saveRole('POST', roleData, 'Rol creado exitosamente');
+    }
+
+    async function updateRole() {
+        if (!roleForm.checkValidity()) {
+            roleForm.classList.add('was-validated');
+            return;
+        }
+
+        const roleData = {
+            id: document.getElementById('roleId').value,
+            name: document.getElementById('roleName').value,
+            description: document.getElementById('roleDescription').value
+        };
+
+        await saveRole('PATCH', roleData, 'Rol actualizado exitosamente');
+    }
+
+async function saveRole(method, data, successMessage) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${BASE_URL}/v1/api/role`, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const errorJson = await response.json(); // Intentar obtener el cuerpo de la respuesta
+            const errorMessage = errorJson.result || 'Ocurrió un error inesperado';
+            throw new Error(errorMessage);
+        }
+
+        roleModal.hide();
+        Swal.fire('Éxito', successMessage, 'success');
+        loadRoles();
+    } catch (error) {
+        console.error('Error detallado:', error);
+        Swal.fire('Error', error.message, 'error');
+    }
+}
+
+
+    async function loadRoles() {
+        try {
+            const token = localStorage.getItem('token');
+
+        if ($.fn.DataTable.isDataTable('#rolesTable')) {
+            $('#rolesTable').DataTable().destroy();
+        }
+
+            const response = await fetch(`${BASE_URL}/v1/api/role/all`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            const roles = await response.json();
+            const tableBody = document.querySelector('#rolesTable tbody');
+            tableBody.innerHTML = roles.map(role => `
+                <tr>
+                    <td><i class="bi bi-search" style="cursor: pointer;"></i></td>
+                    <td style="display: none;">${role.id}</td>
+                    <td>${role.name}</td>
+                    <td>${role.description || ''}</td>
+                    <td>${role.createdAt || '-'}</td>
+                    <td>${role.createdBy || '-'}</td>
+                    <td>${role.updatedAt || '-'}</td>
+                    <td>${role.updatedBy || '-'}</td>
+                </tr>
+            `).join('');
+
+            document.querySelectorAll('.bi-search').forEach((icon, index) => {
+                icon.addEventListener('click', () => fillAndShowModalRole(roles[index]));
+            });
+
+            $('#rolesTable').DataTable({
+            language: {
+                processing: "Procesando...",
+                search: "Buscar:",
+                lengthMenu: "Mostrar _MENU_ registros",
+                info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                infoFiltered: "(filtrado de _MAX_ registros totales)",
+                loadingRecords: "Cargando...",
+                zeroRecords: "No se encontraron resultados",
+                emptyTable: "No hay datos disponibles en la tabla",
+                paginate: {
+                    first: "Primero",
+                    previous: "Anterior",
+                    next: "Siguiente",
+                    last: "Último"
+                },
+                aria: {
+                    sortAscending: ": activar para ordenar la columna ascendente",
+                    sortDescending: ": activar para ordenar la columna descendente"
+                }
+            }
+        });
+        } catch (error) {
+            Swal.fire('Error', 'Error al cargar roles', 'error');
+        }
+    }
+
+    function fillAndShowModalRole(role) {
+        document.getElementById('roleId').value = role.id || '-';
+        document.getElementById('createdAt').value = role.createdAt || '-';
+        document.getElementById('createdBy').value = role.createdBy || '-';
+        document.getElementById('updatedAt').value = role.updatedAt || '-';
+        document.getElementById('updatedBy').value = role.updatedBy || '-';
+
+        document.getElementById('roleName').value = role.name || '';
+        document.getElementById('roleDescription').value = role.description || '';
+
+        document.querySelectorAll('.edit-only').forEach(field => field.style.display = 'block');
+        roleModal.show();
+
+        document.getElementById('editRole').style.display = 'inline-block';
+        document.getElementById('saveRole').style.display = 'none';
+    }
+
+    loadRoles();
+}
+
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                            SALARY MODIFIERS
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+
+function initializeModifierView() {
+    const newModifierBtn = document.getElementById('newModifierBtn');
+    const modifierForm = document.getElementById('modifierForm');
+    const modifierModal = new bootstrap.Modal(document.getElementById('modifierModal'));
+
+    newModifierBtn.addEventListener('click', handleNewModifier);
+
+    modifierForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const action = event.submitter.getAttribute('data-action');
+
+        if (action === 'editModifier' ) {
+          updateModifier();  
+
+        }else {
+          createModifier();  
+        } 
+    });
+
+    function handleNewModifier() {
+        modifierForm.reset();
+        document.querySelectorAll('.edit-only').forEach(field => field.style.display = 'none');
+        modifierModal.show();
+        document.getElementById('editModifier').style.display = 'none';
+        document.getElementById('saveModifier').style.display = 'inline-block';
+    }
+
+    async function createModifier() {
+        const modifierData = {
+            name: document.getElementById('modifierName').value,
+            type: document.getElementById('modifierType').value,
+            amount: parseFloat(document.getElementById('modifierAmount').value)
+        };
+        await saveModifier('POST', modifierData, 'Modificador creado exitosamente');
+    }
+
+    async function updateModifier() {
+        const modifierData = {
+            id: document.getElementById('modifierId').value,
+            name: document.getElementById('modifierName').value,
+            type: document.getElementById('modifierType').value,
+            amount: parseFloat(document.getElementById('modifierAmount').value)
+        };
+        await saveModifier('PATCH', modifierData, 'Modificador actualizado exitosamente');
+    }
+
+    async function saveModifier(method, data, successMessage) {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BASE_URL}/v1/api/modifier`, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const errorJson = await response.json();
+                const errorMessage = errorJson.result || 'Ocurrió un error inesperado';
+                throw new Error(errorMessage);
+            }
+
+            modifierModal.hide();
+             Swal.fire('Éxito', successMessage, 'success').then(() => {
+               loadModifiers();
+              });
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+   }
+          function fillAndShowModalModifier(modifier) {
+        console.log(modifier)
+    // Llenar los campos del modal con los datos del modificador
+    document.getElementById('modifierId').value = modifier.id || '-';
+    document.getElementById('createdAt').value = modifier.createdAt || '-';
+    document.getElementById('createdBy').value = modifier.createdBy || '-';
+    document.getElementById('updatedAt').value = modifier.updatedAt || '-';
+    document.getElementById('updatedBy').value = modifier.updatedBy || '-';
+
+    document.getElementById('modifierName').value = modifier.name || '';
+    document.getElementById('modifierType').value = modifier.type || 'Fijo';
+    document.getElementById('modifierAmount').value = modifier.amount || '';
+
+    // Hacer visibles los campos de solo edición
+    document.querySelectorAll('.edit-only').forEach(field => field.style.display = 'block');
+
+    // Mostrar el botón de edición y ocultar el de guardar
+    document.getElementById('editModifier').style.display = 'inline-block';
+    document.getElementById('saveModifier').style.display = 'none';
+    modifierModal.show();
+}
+async function loadModifiers() {
+    // Destruir la instancia previa de DataTable si existe
+    if ($.fn.DataTable.isDataTable('#modifiersTable')) {
+        $('#modifiersTable').DataTable().destroy();
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${BASE_URL}/v1/api/modifier/all`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            const errorJson = await response.json();
+            const errorMessage = errorJson.result || 'Error al cargar modificadores';
+            throw new Error(errorMessage);
+        }
+
+        const modifiers = await response.json();
+        const tableBody = document.querySelector('#modifiersTable tbody');
+
+        // Rellenar la tabla con los datos obtenidos
+        tableBody.innerHTML = modifiers.map(modifier => `
+            <tr>
+                <td><i class="bi bi-search" style="cursor: pointer;"></i></td>
+                <td style="display: none;">${modifier.id}</td>
+                <td>${modifier.name}</td>
+                <td>${modifier.type}</td>
+                <td>${modifier.amount}</td>
+                <td>${modifier.createdAt || '-'}</td>
+                <td>${modifier.createdBy || '-'}</td>
+                <td>${modifier.updatedAt || '-'}</td>
+                <td>${modifier.updatedBy || '-'}</td>
+            </tr>
+        `).join('');
+
+        // Agregar eventos a cada icono de búsqueda para abrir el modal correspondiente
+        document.querySelectorAll('.bi-search').forEach((icon, index) => {
+            icon.addEventListener('click', () => fillAndShowModalModifier(modifiers[index]));
+        });
+
+        // Inicializar DataTable con configuración en español
+        $('#modifiersTable').DataTable({
+            language: {
+                processing: "Procesando...",
+                search: "Buscar:",
+                lengthMenu: "Mostrar _MENU_ registros",
+                info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                infoFiltered: "(filtrado de _MAX_ registros totales)",
+                loadingRecords: "Cargando...",
+                zeroRecords: "No se encontraron resultados",
+                emptyTable: "No hay datos disponibles en la tabla",
+                paginate: {
+                    first: "Primero",
+                    previous: "Anterior",
+                    next: "Siguiente",
+                    last: "Último"
+                },
+                aria: {
+                    sortAscending: ": activar para ordenar la columna ascendente",
+                    sortDescending: ": activar para ordenar la columna descendente"
+                }
+            }
+        });
+
+    } catch (error) {
+        Swal.fire('Error', error.message, 'error');
+    }
+
+}
+loadModifiers();
+}
+
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                            CONSORTIUMS
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+
+
+async function fetchStatesForConsortium() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${BASE_URL}/v1/api/states/all`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` }
+        });
+        const stateType = await response.json();
+        const stateTypeSelect = document.getElementById('consortiumStateType');
+        
+        stateTypeSelect.innerHTML = '<option value="" disabled selected>Selecciona una provincia</option>';
+        stateType.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type.id;
+            option.textContent = type.name;
+            stateTypeSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error fetching states:', error);
+        Swal.fire('Error fetching states', error, 'error');
+    }
+}
+
+async function fetchCitiesByStateConsortium(stateId) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${BASE_URL}/v1/api/city/state/${stateId}`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const cities = await response.json();
+            const cityTypeSelect = document.getElementById('consortiumCityType');
+
+            cityTypeSelect.innerHTML = '<option value="" disabled selected>Selecciona una ciudad</option>'; // Resetear el select
+            cities.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city.id;
+                option.textContent = city.name;
+                cityTypeSelect.appendChild(option);
+            });
+        } else {
+            Swal.fire('Error cargando Provincias', '', 'error');
+        }
+    } catch (error) {
+       Swal.fire('Error cargando Provincias', error, 'error');
+    }
+}
+
+function initializeConsortiumView() {
+    const newConsortiumBtn = document.getElementById('newConsortiumBtn');
+    const consortiumForm = document.getElementById('consortiumForm');
+    const consortiumModal = new bootstrap.Modal(document.getElementById('consortiumModal'));
+
+    newConsortiumBtn.addEventListener('click', handleNewConsortium);
+
+    consortiumForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const action = event.submitter.getAttribute('data-action');
+        if (action === 'editConsortium') {
+            updateConsortium();
+        } else {
+            createConsortium();
+        }
+    });
+
+    function handleNewConsortium() {
+        consortiumForm.reset();
+        document.querySelectorAll('.edit-only').forEach(field => field.style.display = 'none');
+        consortiumModal.show();
+        document.getElementById('editConsortium').style.display = 'none';
+        document.getElementById('saveConsortium').style.display = 'inline-block';
+    }
+
+    async function createConsortium() {
+        const consortiumData = gatherConsortiumFormData();
+        await saveConsortium('POST', consortiumData, 'Consorcio creado exitosamente');
+    }
+
+    async function updateConsortium() {
+        const consortiumData = gatherConsortiumFormData();
+        consortiumData.id = document.getElementById('consortiumId').value;
+        await saveConsortium('PATCH', consortiumData, 'Consorcio actualizado exitosamente');
+    }
+
+    function gatherConsortiumFormData() {
+        return {
+            name: document.getElementById('name').value,
+            cellPhone: document.getElementById('cellPhone').value,
+            email: document.getElementById('email').value,
+            address: document.getElementById('address').value,
+            zipCode: document.getElementById('zipCode').value,
+            cuit: document.getElementById('cuit').value,
+            cityId: document.getElementById('consortiumCityType').value
+           
+        };
+    }
+
+    async function saveConsortium(method, data, successMessage) {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BASE_URL}/v1/api/consortium`, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const errorJson = await response.json();
+                const errorMessage = errorJson.result || 'Ocurrió un error inesperado';
+                throw new Error(errorMessage);
+            }
+
+            consortiumModal.hide();
+            Swal.fire('Éxito', successMessage, 'success').then(() => loadConsortia());
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    }
+
+    async function loadConsortia() {
+        if ($.fn.DataTable.isDataTable('#consortiumTable')) {
+            $('#consortiumTable').DataTable().clear().destroy();
+        }
+        
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BASE_URL}/v1/api/consortium/all`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            const consortia = await response.json();
+            const tableBody = document.querySelector('#consortiumTable tbody');
+            tableBody.innerHTML = consortia.map(consortium => `
+                <tr>
+                    <td><i class="bi bi-search" style="cursor: pointer;"></i></td>
+                    <td style="display: none;">${consortium.id}</td>
+                    <td>${consortium.name}</td>
+                    <td>${consortium.cellPhone}</td>
+                    <td>${consortium.email}</td>
+                    <td>${consortium.address}</td>
+                    <td>${consortium.cuit}</td>
+                    <td>${consortium.zipCode}</td>
+                    <td>${consortium.cityName}</td>
+                     <td>${consortium.stateName}</td>
+                </tr>
+            `).join('');
 
 
 
 
+                $('#consortiumTable').DataTable({
+            language: {
+                processing: "Procesando...",
+                search: "Buscar:",
+                lengthMenu: "Mostrar _MENU_ registros",
+                info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                infoFiltered: "(filtrado de _MAX_ registros totales)",
+                loadingRecords: "Cargando...",
+                zeroRecords: "No se encontraron resultados",
+                emptyTable: "No hay datos disponibles en la tabla",
+                paginate: {
+                    first: "Primero",
+                    previous: "Anterior",
+                    next: "Siguiente",
+                    last: "Último"
+                },
+                aria: {
+                    sortAscending: ": activar para ordenar la columna ascendente",
+                    sortDescending: ": activar para ordenar la columna descendente"
+                }
+            }
+        });
+            
+
+            $("#cuit").inputmask("99-99999999-9"); 
+            document.querySelectorAll('.bi-search').forEach((icon, index) => {
+                icon.addEventListener('click', () => fillAndShowModalConsortium(consortia[index]));
+            });
+
+            $('#consortiumTable').DataTable();
+
+        fetchStatesForConsortium();
+        document.getElementById('consortiumStateType').addEventListener('change', async function() {
+        const stateId = this.value;
+        await fetchCitiesByStateConsortium(stateId);
+    });
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    }
+
+    function fillAndShowModalConsortium(consortium) {
+
+        document.getElementById('editConsortium').style.display = 'inline-block';
+        document.getElementById('saveConsortium').style.display = 'none';
+
+         document.querySelectorAll('.edit-only').forEach(field => field.style.display = 'inline-block');
+        $("#cuit").inputmask("99-99999999-9"); 
+
+        document.getElementById('createdAt').value = consortium.createdAt || '-';
+        document.getElementById('createdBy').value = consortium.createdBy || '-';
+        document.getElementById('updatedAt').value = consortium.updatedAt || '-';
+        document.getElementById('updatedBy').value = consortium.updatedBy || '-';
+
+        document.getElementById('consortiumId').value = consortium.id || '-';
+        document.getElementById('name').value = consortium.name || '';
+        document.getElementById('cellPhone').value = consortium.cellPhone || '';
+        document.getElementById('email').value = consortium.email || '';
+        document.getElementById('address').value = consortium.address || '';
+        document.getElementById('zipCode').value = consortium.zipCode || '';
+        document.getElementById('cuit').value = consortium.cuit || '';
+        document.getElementById('consortiumStateType').value = consortium.stateId || '';
+        document.getElementById('consortiumCityType').value = consortium.cityId || '';
+
+     if (consortium.stateId) {
+        fetchCitiesByStateConsortium(consortium.stateId).then(() => {
+             document.getElementById('consortiumCityType').value = consortium.cityId || '';
+        });
+    }
+
+        consortiumModal.show();
+    }
+
+    loadConsortia();
+}
