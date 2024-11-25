@@ -81,7 +81,10 @@ function loadContent(contentId) {
         'registroCategorias': 'registroCategorias.html',
         'registroFunciones': 'registroFunciones.html',
         'registroModificadorSalarial': 'registroModificadorSalarial.html',
-        'registroPlanillas': 'registroPlanillas.html'
+        'registroPlanillaRol': 'registroPlanillaRol.html',
+        'registroPlanillaModificadorSalarial','registroPlanillaModificadorSalarial.html',
+        'empleadosConsorcio': 'empleadosConsorcio.html',
+        'historicoEmpleados': 'historicoEmpleados.html'
     };
     const url = contentMapping[contentId];
     fetch(url)
@@ -104,6 +107,7 @@ function loadContent(contentId) {
 
            }
            if(contentId === 'registroCategorias') {
+            loadCategories();
 
            }
            if(contentId === 'registroFunciones') {
@@ -115,9 +119,18 @@ function loadContent(contentId) {
 
 
            }          
-           if(contentId === 'registroPlanillas') {
+           if(contentId === 'registroPlanillaRol') {
+
+           }
+            if(contentId === 'registroPlanillaModificadorSalarial') {
 
            } 
+           if(contentId === 'empleadosConsorcio') {
+            loadConsortiumsEmployee();
+           }
+           if(contentId === 'historicoEmpleados') {
+             initializeEmployeeHistory();
+           }
           
         })
         .catch(error => {
@@ -718,9 +731,7 @@ function initializeModifierView() {
 
     async function createModifier() {
         const modifierData = {
-            name: document.getElementById('modifierName').value,
-            type: document.getElementById('modifierType').value,
-            amount: parseFloat(document.getElementById('modifierAmount').value)
+            name: document.getElementById('modifierName').value
         };
         await saveModifier('POST', modifierData, 'Modificador creado exitosamente');
     }
@@ -728,9 +739,7 @@ function initializeModifierView() {
     async function updateModifier() {
         const modifierData = {
             id: document.getElementById('modifierId').value,
-            name: document.getElementById('modifierName').value,
-            type: document.getElementById('modifierType').value,
-            amount: parseFloat(document.getElementById('modifierAmount').value)
+            name: document.getElementById('modifierName').value
         };
         await saveModifier('PATCH', modifierData, 'Modificador actualizado exitosamente');
     }
@@ -771,8 +780,6 @@ function initializeModifierView() {
     document.getElementById('updatedBy').value = modifier.updatedBy || '-';
 
     document.getElementById('modifierName').value = modifier.name || '';
-    document.getElementById('modifierType').value = modifier.type || 'Fijo';
-    document.getElementById('modifierAmount').value = modifier.amount || '';
 
     // Hacer visibles los campos de solo edición
     document.querySelectorAll('.edit-only').forEach(field => field.style.display = 'block');
@@ -809,8 +816,6 @@ async function loadModifiers() {
                 <td><i class="bi bi-search" style="cursor: pointer;"></i></td>
                 <td style="display: none;">${modifier.id}</td>
                 <td>${modifier.name}</td>
-                <td>${modifier.type}</td>
-                <td>${modifier.amount}</td>
                 <td>${modifier.createdAt || '-'}</td>
                 <td>${modifier.createdBy || '-'}</td>
                 <td>${modifier.updatedAt || '-'}</td>
@@ -1099,3 +1104,311 @@ function initializeConsortiumView() {
 
     loadConsortia();
 }
+
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                            CATEGORIAS
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+
+
+
+async function loadCategories() {
+    const token = localStorage.getItem('token');
+    const table = $('#categoriesTable');
+
+    // Reiniciar la tabla si ya fue inicializada
+    if ($.fn.DataTable.isDataTable(table)) {
+        table.DataTable().clear().destroy();
+    }
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/category/all`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al obtener las categorías.');
+        }
+
+        const categories = await response.json();
+        const tableBody = table.find('tbody');
+        tableBody.empty(); // Limpiar el cuerpo de la tabla
+
+        // Agregar filas dinámicamente
+        categories.forEach(category => {
+            const row = `
+                <tr>
+                    <td>${category.level}</td>
+                    <td>${new Date(category.createdAt).toLocaleString()}</td>
+                    <td>${category.createdBy || '-'}</td>
+                    <td>${category.updatedAt || '-'}</td>
+                    <td>${category.updatedBy || '-'}</td>
+                </tr>
+            `;
+            tableBody.append(row);
+        });
+
+        // Inicializar DataTable
+        table.DataTable({
+            language: {
+                processing: "Procesando...",
+                search: "Buscar:",
+                lengthMenu: "Mostrar _MENU_ registros",
+                info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                infoFiltered: "(filtrado de _MAX_ registros totales)",
+                loadingRecords: "Cargando...",
+                zeroRecords: "No se encontraron resultados",
+                emptyTable: "No hay datos disponibles en la tabla",
+                paginate: {
+                    first: "Primero",
+                    previous: "Anterior",
+                    next: "Siguiente",
+                    last: "Último"
+                },
+                aria: {
+                    sortAscending: ": activar para ordenar la columna ascendente",
+                    sortDescending: ": activar para ordenar la columna descendente"
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error al cargar las categorías:', error);
+        Swal.fire('Error', error.message, 'error');
+    }
+}
+
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                       EMPLOYEE CONSORTIUM
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+
+async function loadConsortiumsEmployee() {
+    const consortiumSelect = document.getElementById('consortiumSelect');
+    const token = localStorage.getItem('token');
+
+    try {
+        // Realiza la solicitud al endpoint para obtener los consorcios
+        const response = await fetch(`${BASE_URL}/v1/api/consortium/all`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al cargar los consorcios.');
+        }
+
+        const consortia = await response.json();
+
+        // Limpia las opciones actuales del select
+        consortiumSelect.innerHTML = '<option value="" disabled selected>Seleccione un Consorcio</option>';
+
+        // Llena el select con las opciones de consorcios
+        consortia.forEach(consortium => {
+            const option = document.createElement('option');
+            option.value = consortium.id;
+            option.textContent = `${consortium.cuit}  ${consortium.name}`;
+            consortiumSelect.appendChild(option);
+        });
+        document.getElementById('searchEmployeeConsortium').addEventListener('click', fetchEmployeesByConsortium);
+    } catch (error) {
+        console.error('Error al cargar consorcios:', error);
+        Swal.fire('Error', 'No se pudieron cargar los consorcios.', 'error');
+    }
+}
+
+
+
+async function fetchEmployeesByConsortium() {
+    const consortiumSelect = document.getElementById('consortiumSelect');
+    const dateFromInput = document.getElementById('dateFromEmployeeConsortium');
+    const dateToInput = document.getElementById('dateToEmployeeConsortium');
+    const vigenteCheckbox = document.getElementById('vigenteCheckbox');
+    const consortiumEmployeesTable = document.getElementById('consortiumEmployeesTable').querySelector('tbody');
+
+    const consortiumId = consortiumSelect.value;
+    const fromDate = dateFromInput.value || '1900-01-01'; // Valor por defecto si no se selecciona fecha
+    const toDate = dateToInput.value || '2100-12-31'; // Valor por defecto si no se selecciona fecha
+
+
+    if (!consortiumId) {
+        Swal.fire('Advertencia', 'Por favor, seleccione un consorcio', 'warning');
+        return;
+    }
+
+    const token = localStorage.getItem('token');
+
+    try {
+        const queryParams = new URLSearchParams({
+            consortiumId,
+            from: fromDate,
+            to: toDate
+        });
+
+        const response = await fetch(`${BASE_URL}/v1/api/employee/by-consortium-date?${queryParams.toString()}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al obtener los empleados.');
+        }
+
+        const employees = await response.json();
+
+        // Limpia la tabla antes de agregar nuevos datos
+        consortiumEmployeesTable.innerHTML = '';
+
+        // Llena la tabla con los datos obtenidos
+        employees.forEach(employee => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" style="cursor:pointer;" class="bi bi-search" viewBox="0 0 16 16">
+                        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+                    </svg>
+                </td>
+                <td style="display: none;">${employee.id}</td>
+                <td>${employee.firstName}</td>
+                <td>${employee.lastName}</td>
+                <td>${employee.documentType}</td>
+                <td>${employee.documentNumber}</td>
+                <td>${employee.cuil}</td>
+                <td>${employee.cellPhone}</td>
+                <td>${employee.email}</td>
+            `;
+            consortiumEmployeesTable.appendChild(row);
+        });
+
+        // Inicializar DataTable si no está ya configurado
+        if (!$.fn.DataTable.isDataTable('#consortiumEmployeesTable')) {
+            $('#consortiumEmployeesTable').DataTable({
+                language: {
+                    search: "Buscar:",
+                    lengthMenu: "Mostrar _MENU_ registros",
+                    info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                    infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                    loadingRecords: "Cargando...",
+                    zeroRecords: "No se encontraron resultados",
+                    emptyTable: "No hay datos disponibles",
+                    paginate: {
+                        first: "Primero",
+                        previous: "Anterior",
+                        next: "Siguiente",
+                        last: "Último"
+                    }
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error al obtener los empleados:', error);
+        Swal.fire('Error', error.message, 'error');
+    }
+}
+
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                       EMPLOYEE HISTORICAL
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+
+
+function populateSelect(selectId, data, defaultOptionText, formatter) {
+    const select = document.getElementById(selectId);
+    select.innerHTML = `<option value="" disabled selected>${defaultOptionText}</option>`;
+    data.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.id || item.value;
+        option.textContent = formatter(item);
+        select.appendChild(option);
+    });
+}
+
+async function loadSelectData(selectId, url, defaultOptionText, formatter) {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error al cargar los datos para ${selectId}`);
+        }
+
+        const data = await response.json();
+        populateSelect(selectId, data, defaultOptionText, formatter);
+    } catch (error) {
+        console.error(`Error cargando ${selectId}:`, error);
+        Swal.fire('Error', `No se pudieron cargar los datos de ${selectId}.`, 'error');
+    }
+}
+
+
+function initializeEmployeeHistory() {
+    console.log('Planilla view initialized');
+
+    const loadHistoryBtn = document.getElementById('loadHistoryBtn');
+    const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+
+    loadHistoryBtn.addEventListener('click', () => {
+        // Cargar selects al abrir el modal con formateadores específicos
+        loadSelectData(
+            'employeeId',
+            `${BASE_URL}/v1/api/employee/all`,
+            'Seleccione un empleado',
+            item => `${item.firstName}  ${item.lastName} - ${item.cuil}`
+        );
+        loadSelectData(
+            'consortiumId',
+            `${BASE_URL}/v1/api/consortium/all`,
+            'Seleccione un consorcio',
+            item => item.name
+        );
+        loadSelectData(
+            'roleId',
+            `${BASE_URL}/v1/api/role/all`,
+            'Seleccione un rol',
+            item => item.name
+        );
+        loadSelectData(
+            'salaryCategoryId',
+            `${BASE_URL}/v1/api/category/all`,
+            'Seleccione una categoría',
+            item =>  item.level
+        );
+
+        // Mostrar el modal
+        historyModal.show();
+    });
+}
+
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                       PAYROLL ROL
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+
+

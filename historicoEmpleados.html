@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carga Histórico de Empleados</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/dataTables.bootstrap5.min.css">
+</head>
+<body>
+    <h1 class="text-center mt-4 mb-3 border-bottom pb-2">Carga Histórico de Empleados</h1>
+
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-md-12">
+                <table class="table table-striped" id="employeeHistoryTable">
+                    <thead>
+                        <tr>
+                            <th scope="col">Ver</th>
+                            <th scope="col" style="display: none;">Id Histórico</th>
+                            <th scope="col" style="display: none;">Id Empleado</th>
+                            <th scope="col" style="display: none;">Id Consorcio</th>
+                            <th scope="col" style="display: none;">Id Categoría</th>
+                            <th scope="col">Empleado</th>
+                            <th scope="col">DNI</th>
+                            <th scope="col">Consorcio</th>
+                            <th scope="col">Rol</th>
+                            <th scope="col">Categoría</th>
+                            <th scope="col">Fecha</th>
+                            <th scope="col">Antigüedad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Los datos se cargarán dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="row justify-content-end mt-3">
+            <div class="col-auto">
+                <button class="btn btn-primary" id="loadHistoryBtn">Cargar Histórico</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Cargar/Editar Histórico -->
+    <div class="modal fade" id="historyModal" tabindex="-1" aria-labelledby="historyModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="historyModalLabel">Carga de Histórico de Empleado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="historyForm">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label for="employeeId" class="form-label">Empleado</label>
+                                <select id="employeeId" class="form-select" required>
+                                    <option value="" disabled selected>Seleccione un empleado</option>
+                                    <!-- Opciones dinámicas -->
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="consortiumId" class="form-label">Consorcio</label>
+                                <select id="consortiumId" class="form-select" required>
+                                    <option value="" disabled selected>Seleccione un consorcio</option>
+                                    <!-- Opciones dinámicas -->
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="roleId" class="form-label">Rol</label>
+                                <select id="roleId" class="form-select" required>
+                                    <option value="" disabled selected>Seleccione un rol</option>
+                                    <!-- Opciones dinámicas -->
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="salaryCategoryId" class="form-label">Categoría</label>
+                                <select id="salaryCategoryId" class="form-select" required>
+                                    <option value="" disabled selected>Seleccione una categoría</option>
+                                    <!-- Opciones dinámicas -->
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="fromDate" class="form-label">Fecha </label>
+                                <input type="month" id="fromDate" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="retirementMultiplier" class="form-label">Multiplicador Retiro Residuos</label>
+                                <input type="number" id="retirementMultiplier" class="form-control" required min="0">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="employeeSeniority" class="form-label">Antigüedad</label>
+                                <input type="number" id="employeeSeniority" class="form-control" required min="0">
+                            </div>
+                        </div>
+                        <hr>
+                        <h5>Conceptos</h5>
+                        <div id="conceptsContainer">
+                            <div class="row g-2 mb-2 concept-row">
+                                <div class="col-md-4">
+                                    <label for="conceptId" class="form-label">Concepto</label>
+                                    <select class="form-select conceptId" required>
+                                        <option value="" disabled selected>Seleccione un concepto</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="conceptType" class="form-label">Tipo</label>
+                                    <select class="form-select conceptType" required>
+                                        <option value="Fijo">Fijo</option>
+                                        <option value="Porcentaje">Porcentaje</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="conceptAmount" class="form-label">Monto</label>
+                                    <input type="number" class="form-control conceptAmount" required min="0.01" step="0.01">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="conceptDetail" class="form-label">Detalle</label>
+                                    <input type="text" class="form-control conceptDetail">
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" id="addConceptBtn" class="btn btn-sm btn-secondary">Añadir Concepto</button>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary" form="historyForm">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap5.min.js"></script>
+    <script src="cargaHistoricoEmpleados.js"></script>
+</body>
+</html>
