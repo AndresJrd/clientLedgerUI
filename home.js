@@ -81,8 +81,8 @@ function loadContent(contentId) {
         'registroCategorias': 'registroCategorias.html',
         'registroFunciones': 'registroFunciones.html',
         'registroModificadorSalarial': 'registroModificadorSalarial.html',
-        'registroPlanillaRol': 'registroPlanillaRol.html',
-        'registroPlanillaModificadorSalarial','registroPlanillaModificadorSalarial.html',
+        'registroPlanillaRoles': 'registroPlanillaRoles.html',
+        'registroPlanillaModificadorSalarial': 'registroPlanillaModificadorSalarial.html',
         'empleadosConsorcio': 'empleadosConsorcio.html',
         'historicoEmpleados': 'historicoEmpleados.html'
     };
@@ -95,7 +95,7 @@ function loadContent(contentId) {
 
             }
             if(contentId === 'registroUsuario'){
-
+                loadUsers();
             }
             if(contentId === 'registroEmpleados') {
                 initializeEmployeeView();
@@ -117,9 +117,8 @@ function loadContent(contentId) {
            if(contentId === 'registroModificadorSalarial') {
             initializeModifierView();
 
-
            }          
-           if(contentId === 'registroPlanillaRol') {
+           if(contentId === 'registroPlanillaRoles') {
 
            }
             if(contentId === 'registroPlanillaModificadorSalarial') {
@@ -1406,9 +1405,79 @@ function initializeEmployeeHistory() {
 //#############################################################################################################
 //#############################################################################################################
 //#############################################################################################################
-//                                       PAYROLL ROL
+//                                       USERS
 //#############################################################################################################
 //#############################################################################################################
 //#############################################################################################################
 
 
+async function loadUsers() {
+    const token = localStorage.getItem('token');
+    const table = $('#usersTable');
+
+    // Reiniciar la tabla si ya fue inicializada
+    if ($.fn.DataTable.isDataTable(table)) {
+        table.DataTable().clear().destroy();
+    }
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/users/all`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al obtener los usuarios.');
+        }
+
+        const users = await response.json();
+        const tableBody = table.find('tbody');
+        tableBody.empty(); // Limpiar el cuerpo de la tabla
+
+        // Agregar filas dinámicamente
+        users.forEach(user => {
+            const row = `
+                <tr>
+                    <td>${user.id}</td>
+                    <td>${user.name}</td>
+                    <td>${user.lastName}</td>
+                    <td>${user.email}</td>
+                    <td>${user.role || 'Sin rol'}</td>
+                    <td>${new Date(user.createdAt).toLocaleString()}</td>
+                </tr>
+            `;
+            tableBody.append(row);
+        });
+
+        // Inicializar DataTable
+        table.DataTable({
+            language: {
+                processing: "Procesando...",
+                search: "Buscar:",
+                lengthMenu: "Mostrar _MENU_ registros",
+                info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                infoFiltered: "(filtrado de _MAX_ registros totales)",
+                loadingRecords: "Cargando...",
+                zeroRecords: "No se encontraron resultados",
+                emptyTable: "No hay datos disponibles en la tabla",
+                paginate: {
+                    first: "Primero",
+                    previous: "Anterior",
+                    next: "Siguiente",
+                    last: "Último"
+                },
+                aria: {
+                    sortAscending: ": activar para ordenar la columna ascendente",
+                    sortDescending: ": activar para ordenar la columna descendente"
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error al cargar los usuarios:', error);
+        Swal.fire('Error', error.message, 'error');
+    }
+}
