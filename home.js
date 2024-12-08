@@ -68,13 +68,48 @@ function showUserInfo(email) {
     const userInfo = document.getElementById('user-info');
     const userEmailSpan = document.getElementById('user-email');
     
-    userEmailSpan.textContent = email + '  | ';
+    userEmailSpan.textContent = email + ' ';
     userInfo.style.display = 'flex'; // Asegura que el contenedor sea visible
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+    const logoutButton = document.getElementById('logout-btn');
+
+    logoutButton.addEventListener('click', () => {
+        // Mostrar confirmación con SweetAlert
+        Swal.fire({
+            title: '¿Estás seguro?',
+            text: 'Esto cerrará tu sesión.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, cerrar sesión',
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true,
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Eliminar el token del almacenamiento local
+                localStorage.removeItem('token');
+                
+                // Mostrar el modal de login
+                const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+                loginModal.show();
+
+                // Ocultar la sección de información del usuario
+                const userInfo = document.getElementById('user-info');
+                userInfo.style.display = 'none';
+
+                // Mostrar mensaje de éxito
+                Swal.fire('Cerrado', 'Tu sesión ha sido cerrada.', 'success');
+            }
+        });
+    });
+});
+
+
+
 function loadContent(contentId) {
     const contentMapping = {
-        'bcra': 'bcra.html',
+        'interest': 'interest.html',
         'registroUsuario': 'registroUsuario.html',
         'registroEmpleados': 'registroEmpleados.html',
         'consorcios': 'consorcios.html',
@@ -82,16 +117,18 @@ function loadContent(contentId) {
         'registroFunciones': 'registroFunciones.html',
         'registroModificadorSalarial': 'registroModificadorSalarial.html',
         'registroPlanillaRoles': 'registroPlanillaRoles.html',
-        'registroPlanillaModificadorSalarial': 'registroPlanillaModificadorSalarial.html',
+        'registroPlanillaModificador': 'registroPlanillaModificador.html',
         'empleadosConsorcio': 'empleadosConsorcio.html',
-        'historicoEmpleados': 'historicoEmpleados.html'
+        'historicoEmpleados': 'historicoEmpleados.html',
+        'registroBasePlanillas': 'registroBasePlanillas.html'
     };
     const url = contentMapping[contentId];
     fetch(url)
         .then(response => response.text())
         .then(html => {
             document.getElementById('content').innerHTML = html;
-            if (contentId === 'bcra') {
+            if (contentId === 'interest') {
+
 
             }
             if(contentId === 'registroUsuario'){
@@ -119,9 +156,17 @@ function loadContent(contentId) {
 
            }          
            if(contentId === 'registroPlanillaRoles') {
+            loadPlanillaRolBase();
 
            }
-            if(contentId === 'registroPlanillaModificadorSalarial') {
+           if(contentId === 'registroPlanillaModificador') {
+            loadPlanillaModificadorBase();
+
+           }
+            if(contentId === 'registroBasePlanillas') {
+
+                loadPlanillaBase();
+                initializePlanillaBase();
 
            } 
            if(contentId === 'empleadosConsorcio') {
@@ -1481,3 +1526,667 @@ async function loadUsers() {
         Swal.fire('Error', error.message, 'error');
     }
 }
+
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                       PLANILLA BASE
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+
+// Inicializa el contenido de la vista de planillas
+function initializePlanillaBase() {
+    const savePlanillaMButton = document.getElementById('savePlanillaMButton');
+    if (savePlanillaMButton) {
+        savePlanillaMButton.addEventListener('click', savePlanilla);
+    }
+}
+
+// Carga la tabla con las planillas
+async function loadPlanillaBase() {
+    const tableBody = document.querySelector('#planillaBaseTable tbody');
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/period/all`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al cargar las planillas.');
+        }
+
+        const planillas = await response.json();
+
+        // Limpia la tabla antes de recargar
+        if ($.fn.DataTable.isDataTable('#planillaBaseTable')) {
+            $('#planillaBaseTable').DataTable().clear().destroy();
+        }
+        tableBody.innerHTML = '';
+
+        // Rellena la tabla con las planillas
+        planillas.forEach(planilla => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" style="cursor:pointer;" class="bi bi-search" viewBox="0 0 16 16">
+                        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+                    </svg>
+                </td>
+                <td style="display: none;">${planilla.id}</td>
+                <td>${planilla.dispositionId}</td>
+                <td>${planilla.name}</td>
+                <td>${planilla.fromDate}</td>
+                <td>${planilla.toDate}</td>
+                <td>${new Date(planilla.createdAt).toLocaleString()}</td>
+                <td>${planilla.createdBy || '-'}</td>
+                <td>${planilla.updatedAt ? new Date(planilla.updatedAt).toLocaleString() : '-'}</td>
+                <td>${planilla.updatedBy || '-'}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+
+        // Reinicia DataTable con los datos nuevos
+        $('#planillaBaseTable').DataTable({
+            language: {
+                search: 'Buscar:',
+                lengthMenu: 'Mostrar _MENU_ registros',
+                info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+                infoEmpty: 'Mostrando 0 a 0 de 0 registros',
+                loadingRecords: 'Cargando...',
+                zeroRecords: 'No se encontraron resultados',
+                emptyTable: 'No hay datos disponibles',
+                paginate: {
+                    first: 'Primero',
+                    previous: 'Anterior',
+                    next: 'Siguiente',
+                    last: 'Último',
+                },
+            },
+        });
+    } catch (error) {
+        console.error('Error al cargar las planillas:', error);
+        Swal.fire('Error', 'No se pudieron cargar las planillas.', 'error');
+    }
+}
+
+// Guarda una nueva planilla
+async function savePlanilla() {
+    const planillaForm = document.getElementById('planillaBaseForm');
+
+    // Validación del formulario
+    if (!planillaForm.checkValidity()) {
+        planillaForm.classList.add('was-validated');
+        return;
+    }
+
+    // Obtener los valores del formulario
+    const fromDate = document.getElementById('fromDatePicker').value;
+    const toDate = document.getElementById('toDatePicker').value;
+    const name = document.getElementById('planillaNameInput').value.trim();
+    const dispositionId = document.getElementById('dispositionNameInput').value.trim();
+
+    const token = localStorage.getItem('token');
+    const postData = {
+        fromDate,
+        toDate,
+        name,
+        dispositionId,
+    };
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/period`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(postData),
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al guardar la planilla.');
+        }
+
+        Swal.fire('Éxito', 'Planilla creada correctamente.', 'success');
+
+        // Cerrar el modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('cargarPlanillaModal'));
+        modal.hide();
+
+        // Reiniciar el formulario
+        planillaForm.reset();
+        planillaForm.classList.remove('was-validated');
+
+        // Recargar la tabla
+        loadPlanillaBase();
+    } catch (error) {
+        console.error('Error al guardar la planilla:', error);
+        Swal.fire('Error', error.message, 'error');
+    }
+}
+
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                       PLANILLA MODIFICADOR
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+
+async function loadPlanillaModificadorBase() {
+    const planillaSelect = document.getElementById('planillaMofidierSelect');
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/period/all`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al cargar las planillas.');
+        }
+
+        const planillas = await response.json();
+        planillaSelect.innerHTML = '<option value="" disabled selected>Seleccione una Planilla</option>';
+
+        planillas.forEach(planilla => {
+            const option = document.createElement('option');
+            option.value = `${planilla.fromDate},${planilla.toDate}`;
+            option.textContent = `${planilla.fromDate} - ${planilla.toDate} | ${planilla.name} | ${planilla.dispositionId}`;
+            planillaSelect.appendChild(option);
+        });
+
+        planillaSelect.addEventListener('change', fetchPlanillaDetails);
+        loadModifiersSelectModal();
+        document.getElementById('saveModifierButton').addEventListener('click', saveModifier);
+        document.getElementById('editModifierButton').addEventListener('click', updateModifier);
+    } catch (error) {
+        console.error('Error al cargar las planillas:', error);
+        Swal.fire('Error', 'No se pudieron cargar las planillas.', 'error');
+    }
+}
+
+async function loadModifiersSelectModal() {
+    const modifierSelect = document.getElementById('planillaModifierNameSelect');
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/modifier/all`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al cargar modificadores salariales.');
+        }
+
+        const modifiers = await response.json();
+        modifierSelect.innerHTML = '<option value="" disabled selected>Seleccione un Modificador Salarial</option>';
+
+        modifiers.forEach(modifier => {
+            const option = document.createElement('option');
+            option.value = modifier.id;
+            option.textContent = modifier.name;
+            modifierSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error al cargar modificadores salariales:', error);
+        Swal.fire('Error', 'No se pudieron cargar los modificadores salariales.', 'error');
+    }
+}
+
+async function fetchPlanillaDetails() {
+    const planillaSelect = document.getElementById('planillaMofidierSelect');
+    const planillaBaseTable = document.getElementById('salaryPlanillaModifiersTable').querySelector('tbody');
+    const token = localStorage.getItem('token');
+    const [fromDate, toDate] = planillaSelect.value.split(',');
+
+
+            // Reiniciar DataTable
+        if ($.fn.DataTable.isDataTable('#salaryPlanillaModifiersTable')) {
+            $('#salaryPlanillaModifiersTable').DataTable().clear().destroy();
+        }
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/period/search?fromDate=${fromDate}&toDate=${toDate}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al obtener los detalles de la planilla.');
+        }
+
+        const planillaDetails = await response.json();
+
+        // Limpia el tbody de la tabla
+        planillaBaseTable.innerHTML = '';
+
+        // Agregar datos a la tabla
+        planillaDetails.forEach(planilla => {
+            if (Array.isArray(planilla.salaryModifierPeriodRelationships)) {
+                planilla.salaryModifierPeriodRelationships.forEach(modifier => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" style="cursor:pointer;" class="bi bi-search" viewBox="0 0 16 16">
+                                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+                            </svg>
+                        </td>
+                        <td style="display: none;">${modifier.salaryModifierId}</td>
+                        <td>${planilla.fromDate || '-'}</td>
+                        <td>${planilla.toDate || '-'}</td>
+                        <td>${modifier.amount || '-'}</td>
+                        <td>${modifier.markUpType || '-'}</td>
+                        <td>${modifier.salaryModifierName || '-'}</td>
+                        <td>${modifier.createdAt ? new Date(modifier.createdAt).toLocaleString() : '-'}</td>
+                        <td>${modifier.createdBy || '-'}</td>
+                        <td>${modifier.updatedAt ? new Date(modifier.updatedAt).toLocaleString() : '-'}</td>
+                        <td>${modifier.updatedBy || '-'}</td>
+                    `;
+                    planillaBaseTable.appendChild(row);
+                });
+            }
+        });
+
+
+
+        $('#salaryPlanillaModifiersTable').DataTable({
+            language: {
+                search: "Buscar:",
+                lengthMenu: "Mostrar _MENU_ registros",
+                info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                loadingRecords: "Cargando...",
+                zeroRecords: "No se encontraron resultados",
+                emptyTable: "No hay datos disponibles",
+                paginate: {
+                    first: "Primero",
+                    previous: "Anterior",
+                    next: "Siguiente",
+                    last: "Último"
+                }
+            }
+        });
+
+            document.getElementById('salaryPlanillaModifiersTable').addEventListener('click', (event) => {
+        const target = event.target.closest('svg');
+        if (target) {
+            const row = target.closest('tr');
+            openEditModal(row);
+        }
+            });
+    } catch (error) {
+        console.error('Error al obtener los detalles de la planilla:', error);
+        Swal.fire('Error', error.message, 'error');
+    }
+}
+
+
+async function saveModifier() {
+    const form = document.getElementById('planillaModifierForm');
+    if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        return;
+    }
+
+    const salaryModifierId = document.getElementById('planillaModifierNameSelect').value;
+    const amount = parseFloat(document.getElementById('modifierAmountInput').value);
+    const markUp = document.getElementById('modifierTypeSelect').value;
+    const token = localStorage.getItem('token');
+    const planillaSelect = document.getElementById('planillaMofidierSelect');
+    const [fromDate, toDate] = planillaSelect.value.split(',');
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/period/modifier`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ salaryModifierId, amount, markUp, fromDate, toDate })
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al guardar el registro de la planilla.');
+        }
+        Swal.fire('Éxito', 'Registro guardado correctamente.', 'success');
+
+        // Close the modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('cargarRegistroModal'));
+        modal.hide();
+        form.reset();
+        form.classList.remove('was-validated');
+
+        // Reload the table for the currently selected Planilla
+        fetchPlanillaDetails(); // Call fetchPlanillaDetails directly
+    } catch (error) {
+        console.error('Error al guardar el registro:', error);
+        Swal.fire('Error', error.message, 'error');
+    }
+}
+
+
+
+
+function openEditModal(row) {
+    // Obtener los datos del row correspondiente
+    const salaryModifierId = row.cells[1].textContent.trim(); // ID del modificador
+    const amount = row.cells[4].textContent.trim(); // Monto
+    const markUpType = row.cells[5].textContent.trim(); // Tipo
+
+    // Pre-popular los campos del modal
+    document.getElementById('modifierAmountInput').value = amount;
+    document.getElementById('modifierTypeSelect').value = markUpType;
+    document.getElementById('planillaModifierNameSelect').value = salaryModifierId;
+
+    // Guardar el ID del modificador en un atributo de datos para usarlo en el PATCH
+    document.getElementById('editModifierButton').setAttribute('data-modifier-id', salaryModifierId);
+
+    // Mostrar el botón de edición y ocultar el botón de guardar
+    document.getElementById('saveModifierButton').style.display = 'none';
+    document.getElementById('editModifierButton').style.display = 'block';
+
+    // Abrir el modal
+    const modal = new bootstrap.Modal(document.getElementById('cargarRegistroModal'));
+    modal.show();
+}
+
+async function updateModifier() {
+    const form = document.getElementById('planillaModifierForm');
+    if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        return;
+    }
+
+    const salaryModifierId = document.getElementById('editModifierButton').getAttribute('data-modifier-id');
+    const amount = parseFloat(document.getElementById('modifierAmountInput').value);
+    const markUp = document.getElementById('modifierTypeSelect').value;
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/period/modifier/${salaryModifierId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ amount, markUp })
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al actualizar el registro de la planilla.');
+        }
+
+        Swal.fire('Éxito', 'Registro actualizado correctamente.', 'success');
+
+        // Cerrar el modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('cargarRegistroModal'));
+        modal.hide();
+        form.reset();
+        form.classList.remove('was-validated');
+
+        // Reload the table for the currently selected Planilla
+        fetchPlanillaDetails();
+    } catch (error) {
+        console.error('Error al actualizar el registro:', error);
+        Swal.fire('Error', error.message, 'error');
+    }
+}
+
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                       PLANILLA ROLES
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+
+async function loadPlanillaRolBase() {
+    const planillaSelect = document.getElementById('planillaRoleSelect');
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/period/all`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al cargar las planillas.');
+        }
+
+        const planillas = await response.json();
+        planillaSelect.innerHTML = '<option value="" disabled selected>Seleccione una Planilla</option>';
+
+        planillas.forEach(planilla => {
+            const option = document.createElement('option');
+            option.value = `${planilla.fromDate},${planilla.toDate}`;
+            option.textContent = `${planilla.fromDate} - ${planilla.toDate} | ${planilla.name} | ${planilla.dispositionId}`;
+            planillaSelect.appendChild(option);
+        });
+
+         planillaSelect.addEventListener('change', fetchPlanillaRoleCategoryDetails);
+          const form = document.getElementById('roleCategoryForm');
+        form.addEventListener('submit', async (event) => {
+        event.preventDefault(); // Prevenir la recarga de la página
+        await saveRoleCategory(); // Llamar a la función para guardar los datos
+    });
+
+        loadRoleAndCategorySelects();
+    } catch (error) {
+        console.error('Error al cargar las planillas:', error);
+        Swal.fire('Error', 'No se pudieron cargar las planillas.', 'error');
+    }
+}
+
+async function loadRoleAndCategorySelects() {
+    // Llenar el select de categorías
+    await loadSelectDataRoleCategory(
+        'categoryCategoryInput', // ID del select de categorías
+        `${BASE_URL}/v1/api/category/all`, // URL para obtener las categorías
+        'Seleccione una categoría', // Placeholder
+        'name' // Usar `name` como texto
+    );
+
+    // Llenar el select de roles
+    await loadSelectDataRoleCategory(
+        'roleNameCategorySelect', // ID del select de roles
+        `${BASE_URL}/v1/api/role/all`, // URL para obtener los roles
+        'Seleccione un rol', // Placeholder
+        'level' // Usar `level` como texto
+    );
+}
+
+async function loadSelectDataRoleCategory(selectId, url, placeholder, displayField) {
+    const selectElement = document.getElementById(selectId);
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error al cargar datos para ${selectId}`);
+        }
+
+        const data = await response.json();
+
+        // Limpia las opciones actuales del select
+        selectElement.innerHTML = `<option value="" disabled selected>${placeholder}</option>`;
+
+        // Agrega las opciones dinámicamente
+        data.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = item.level || item.name; // Usa el campo especificado como texto
+            selectElement.appendChild(option);
+        });
+    } catch (error) {
+        console.error(`Error al cargar datos para ${selectId}:`, error);
+        Swal.fire('Error', `No se pudieron cargar los datos de ${placeholder.toLowerCase()}.`, 'error');
+    }
+}
+
+async function fetchPlanillaRoleCategoryDetails() {
+    const planillaSelect = document.getElementById('planillaRoleSelect');
+    const planillaBaseTable = document.getElementById('salaryRoleTable').querySelector('tbody');
+    const token = localStorage.getItem('token');
+    const [fromDate, toDate] = planillaSelect.value.split(',');
+
+
+            // Reiniciar DataTable
+        if ($.fn.DataTable.isDataTable('#salaryRoleTable')) {
+            $('#salaryRoleTable').DataTable().clear().destroy();
+        }
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/period/search?fromDate=${fromDate}&toDate=${toDate}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al obtener los detalles de la planilla.');
+        }
+
+        const planillaDetails = await response.json();
+
+        // Limpia el tbody de la tabla
+        planillaBaseTable.innerHTML = '';
+
+        // Agregar datos a la tabla
+        planillaDetails.forEach(planilla => {
+            if (Array.isArray(planilla.salaryModifierPeriodRelationships)) {
+                planilla.roleCategoryRelationships.forEach(modifier => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" style="cursor:pointer;" class="bi bi-search" viewBox="0 0 16 16">
+                                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+                            </svg>
+                        </td>
+                        <td style="display: none;">${modifier.salaryModifierId}</td>
+                        <td>${planilla.fromDate || '-'}</td>
+                        <td>${planilla.toDate || '-'}</td>
+                        <td>${modifier.amount || '-'}</td>
+                        <td>${modifier.roleName || '-'}</td>
+                        <td>${modifier.categoryLevel || '-'}</td>
+                        <td>${modifier.createdAt ? new Date(modifier.createdAt).toLocaleString() : '-'}</td>
+                        <td>${modifier.createdBy || '-'}</td>
+                        <td>${modifier.updatedAt ? new Date(modifier.updatedAt).toLocaleString() : '-'}</td>
+                        <td>${modifier.updatedBy || '-'}</td>
+                    `;
+                    planillaBaseTable.appendChild(row);
+                });
+            }
+        });
+
+
+
+        $('#salaryRoleTable').DataTable({
+            language: {
+                search: "Buscar:",
+                lengthMenu: "Mostrar _MENU_ registros",
+                info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                loadingRecords: "Cargando...",
+                zeroRecords: "No se encontraron resultados",
+                emptyTable: "No hay datos disponibles",
+                paginate: {
+                    first: "Primero",
+                    previous: "Anterior",
+                    next: "Siguiente",
+                    last: "Último"
+                }
+            }
+        });
+
+         /*   document.getElementById('salaryRoleTable').addEventListener('click', (event) => {
+        const target = event.target.closest('svg');
+        if (target) {
+            const row = target.closest('tr');
+            openEditModal(row);
+        }
+            });*/
+    } catch (error) {
+        console.error('Error al obtener los detalles de la planilla:', error);
+        Swal.fire('Error', error.message, 'error');
+    }
+}
+
+async function saveRoleCategory() {
+    const form = document.getElementById('roleCategoryForm');
+    if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        return;
+    }
+
+    const roleId = document.getElementById('roleNameCategorySelect').value;
+    const salaryCategoryId = document.getElementById('categoryCategoryInput').value;
+    const amount = parseFloat(document.getElementById('amountCategoryInput').value);
+    const token = localStorage.getItem('token');
+    const planillaSelect = document.getElementById('planillaRoleSelect');
+    const [fromDate, toDate] = planillaSelect.value.split(',');
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/period/role-category`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ roleId, salaryCategoryId, amount, fromDate, toDate })
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al guardar el registro del rol y categoría.');
+        }
+
+        Swal.fire('Éxito', 'Registro guardado correctamente.', 'success');
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById('cargarRegistroRolModal'));
+        modal.hide();
+        form.reset();
+        form.classList.remove('was-validated');
+
+        // Recargar la tabla después de guardar
+        fetchPlanillaRoleCategoryDetails();
+    } catch (error) {
+        console.error('Error al guardar el registro:', error);
+        Swal.fire('Error', error.message, 'error');
+    }
+}
+
+
+
+
+
+
+
+
