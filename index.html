@@ -17,6 +17,7 @@
         <div id="user-info" class="ms-auto d-flex align-items-center" style="display: none;">
            <i class="bi bi-person-circle fs-4 me-2" style="color: #007bff;"></i>
            <span id="user-email" class="fw-bold text-dark"></span>
+           <button id="logout-btn" class="btn btn-outline-danger btn-sm ms-3">Logout</button>
         </div>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
@@ -28,7 +29,9 @@
                         Configuraciónes
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
-                        <li><a class="dropdown-item" href="#" id="interest">BCRA</a></li>
+                        <li><a class="dropdown-item" href="#" id="interest">Intereses</a></li>
+                        <li><a class="dropdown-item" href="#" id="interest">Configuracion de Conceptos</a></li>
+                        <li><a class="dropdown-item" href="#" id="interest">Registro de Conceptos</a></li>
                     </ul>
                 </li>
                 <li class="nav-item dropdown">
@@ -72,8 +75,34 @@
                         Planilla
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink6">
+                        <li><a class="dropdown-item" href="#" id="registroBasePlanillas">Registro de Planillas</a></li>
                         <li><a class="dropdown-item" href="#" id="registroPlanillaRoles">Registro de Planilla Roles</a></li>
-                        <li><a class="dropdown-item" href="#" id="registroPlanillaModificadorSalarial">Registro de Planilla Modificadores</a></li>
+                        <li><a class="dropdown-item" href="#" id="registroPlanillaModificador">Registro de Planilla Modificadores</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink7" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Deuda
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink7">
+                        <li><a class="dropdown-item" href="#" id="calculoDeuda">Calculo de Deuda</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink8" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Convenios
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink8">
+                        <li><a class="dropdown-item" href="#" id="convenios">Generacion de Convenios</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink9" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Pagos
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink9">
+                        <li><a class="dropdown-item" href="#" id="pagos">Registro de Pagos</a></li>
                     </ul>
                 </li>
             </ul>
