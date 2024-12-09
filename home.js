@@ -74,7 +74,7 @@ function showUserInfo(email) {
 
 function loadContent(contentId) {
     const contentMapping = {
-        'bcra': 'bcra.html',
+        'interest': 'interest.html',
         'registroUsuario': 'registroUsuario.html',
         'registroEmpleados': 'registroEmpleados.html',
         'consorcios': 'consorcios.html',
@@ -91,8 +91,8 @@ function loadContent(contentId) {
         .then(response => response.text())
         .then(html => {
             document.getElementById('content').innerHTML = html;
-            if (contentId === 'bcra') {
-
+            if (contentId === 'interest') {
+                initializeInterestView();
             }
             if(contentId === 'registroUsuario'){
                 loadUsers();
