@@ -120,7 +120,8 @@ function loadContent(contentId) {
         'registroPlanillaModificador': 'registroPlanillaModificador.html',
         'empleadosConsorcio': 'empleadosConsorcio.html',
         'historicoEmpleados': 'historicoEmpleados.html',
-        'registroBasePlanillas': 'registroBasePlanillas.html'
+        'registroBasePlanillas': 'registroBasePlanillas.html',
+        'calculoDeuda': 'calculoDeuda.html'
     };
     const url = contentMapping[contentId];
     fetch(url)
@@ -174,6 +175,10 @@ function loadContent(contentId) {
            }
            if(contentId === 'historicoEmpleados') {
              initializeEmployeeHistory();
+           }
+
+           if(contentId === 'calculoDeuda') {
+            loadConsortiums();
            }
           
         })
@@ -2184,9 +2189,137 @@ async function saveRoleCategory() {
 }
 
 
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                       CALCULO DEUDA
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
 
 
 
+async function loadConsortiums() {
+    const consortiumSelect = document.getElementById('consortiumSelect');
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/consortium/all`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al cargar los consorcios.');
+        }
+
+        const consortiums = await response.json();
+        consortiumSelect.innerHTML = '<option value="" disabled selected>Seleccione un Consorcio</option>';
+
+        consortiums.forEach(consortium => {
+            const option = document.createElement('option');
+            option.value = consortium.id;
+            option.textContent = consortium.name;
+            consortiumSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error al cargar los consorcios:', error);
+        Swal.fire('Error', 'No se pudieron cargar los consorcios.', 'error');
+    }
+}
+
+
+
+async function calculateDebt() {
+    const consortiumSelect = document.getElementById('consortiumSelect');
+    const fromDate = document.getElementById('fromDateInput').value;
+    const toDate = document.getElementById('toDateInput').value;
+    const dueDate = document.getElementById('dueDateInput').value;
+    const token = localStorage.getItem('token');
+    const consortiumId = consortiumSelect.value;
+
+    if (!consortiumId || !fromDate || !toDate || !dueDate) {
+        Swal.fire('Error', 'Por favor complete todos los campos.', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `${BASE_URL}/v1/api/debt/calculate?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}&dueDate=${dueDate}`,
+            {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error('Error al calcular la deuda.');
+        }
+
+        const debtData = await response.json();
+        displayDebtData(debtData);
+    } catch (error) {
+        console.error('Error al calcular la deuda:', error);
+        Swal.fire('Error', error.message, 'error');
+    }
+}
+
+function displayDebtData(debtData) {
+    const tableBody = document.querySelector('#consortiumDebtTable tbody');
+    const totalCapital = document.getElementById('totalCapital');
+    const totalInterest = document.getElementById('totalInterest');
+
+    let totalCapitalValue = 0;
+    let totalInterestValue = 0;
+
+    tableBody.innerHTML = '';
+
+    debtData.employeeDebts.forEach(employee => {
+        employee.debts.forEach(debt => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${employee.firstName} ${employee.lastName}</td>
+                <td>${employee.cuil}</td>
+                <td>${debt.dateFrom}</td>
+                <td>${debt.dateTo}</td>
+                <td>${debt.capital.toFixed(2)}</td>
+                <td>${debt.interest.toFixed(2)}</td>
+            `;
+            tableBody.appendChild(row);
+            totalCapitalValue += parseFloat(debt.capital);
+            totalInterestValue += parseFloat(debt.interest);
+        });
+    });
+
+    totalCapital.textContent = totalCapitalValue.toFixed(2);
+    totalInterest.textContent = totalInterestValue.toFixed(2);
+
+    if ($.fn.DataTable.isDataTable('#consortiumDebtTable')) {
+        $('#consortiumDebtTable').DataTable().clear().destroy();
+    }
+
+    $('#consortiumDebtTable').DataTable({
+        language: {
+            search: 'Buscar:',
+            lengthMenu: 'Mostrar _MENU_ registros',
+            info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+            infoEmpty: 'Mostrando 0 a 0 de 0 registros',
+            loadingRecords: 'Cargando...',
+            zeroRecords: 'No se encontraron resultados',
+            emptyTable: 'No hay datos disponibles',
+            paginate: {
+                first: 'Primero',
+                previous: 'Anterior',
+                next: 'Siguiente',
+                last: 'Último'
+            }
+        }
+    });
+}
 
 
 
