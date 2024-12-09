@@ -129,8 +129,7 @@ function loadContent(contentId) {
         .then(html => {
             document.getElementById('content').innerHTML = html;
             if (contentId === 'interest') {
-
-
+                initializeInterestView();
             }
             if(contentId === 'registroUsuario'){
                 loadUsers();
@@ -2320,6 +2319,175 @@ function displayDebtData(debtData) {
         }
     });
 }
+
+
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                               Interest
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+
+function initializeInterestView() {
+    const newInterestBtn = document.getElementById('newInterestBtn');
+    const interestForm = document.getElementById('interestForm');
+    const interestModal = new bootstrap.Modal(document.getElementById('interestModal'));
+
+    newInterestBtn.addEventListener('click', handleNewInterest);
+
+    interestForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const action = event.submitter.getAttribute('data-action');
+        if (action === 'editInterest') {
+            updateInterest();
+        } else {
+            createInterest();
+        }
+    });
+
+    function handleNewInterest() {
+        interestForm.reset();
+        document.querySelectorAll('.edit-only').forEach(field => field.style.display = 'none');
+        interestModal.show();
+        document.getElementById('editInterest').style.display = 'none';
+        document.getElementById('saveInterest').style.display = 'inline-block';
+    }
+
+    async function createInterest() {
+        if (!interestForm.checkValidity()) {
+            interestForm.classList.add('was-validated');
+            return;
+        }
+        const interestData = gatherInterestFormData();
+
+        console.log("Interest Data:", interestData)
+
+        await saveInterest('POST', interestData, 'Interés creado exitosamente');
+    }
+
+    async function updateInterest() {
+        if (!interestForm.checkValidity()) {
+            interestForm.classList.add('was-validated');
+            return;
+        }
+
+        const interestData = gatherInterestFormData();
+        interestData.id = document.getElementById('interestId').value;
+        await saveInterest('PATCH', interestData, 'Interés actualizado exitosamente');
+    }
+
+    function gatherInterestFormData() {
+        return {
+            norm: document.getElementById('norm').value,
+            interest: parseFloat(document.getElementById('interestAmount').value),
+            fromDate: document.getElementById('fromDate').value,
+            toDate: document.getElementById('toDate').value
+        };
+    }
+
+    async function saveInterest(method, data, successMessage) {
+        try {
+            console.log("Data before to convert json:", data)
+
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BASE_URL}/v1/api/interest`, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(data)
+            });
+
+            console.log("Data after to convert json:", JSON.stringify(data))
+
+            if (!response.ok) {
+                const errorJson = await response.json();
+                const errorMessage = errorJson.result || 'Ocurrió un error inesperado';
+                Swal.fire('Error', errorMessage);
+            }else{
+                Swal.fire('Éxito', successMessage, 'success').then(() => loadInterests());
+            }
+
+            interestModal.hide();
+            
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    }
+
+    async function loadInterests() {
+        if ($.fn.DataTable.isDataTable('#interestTable')) {
+            $('#interestTable').DataTable().destroy();
+        }
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BASE_URL}/v1/api/interest/all`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al cargar los intereses.');
+            }
+
+            const interests = await response.json();
+            const tableBody = document.querySelector('#interestTable tbody');
+            tableBody.innerHTML = interests.map(interest => `
+                <tr>
+                    <td><i class="bi bi-search" style="cursor: pointer;"></i></td>
+                    <td style="display: none;">${interest.id}</td>
+                    <td>${interest.norm}</td>
+                    <td>${interest.interest}</td>
+                    <td>${interest.fromDate}</td>
+                    <td>${interest.toDate}</td>
+                </tr>
+            `).join('');
+
+            document.querySelectorAll('.bi-search').forEach((icon, index) => {
+                icon.addEventListener('click', () => fillAndShowModalInterest(interests[index]));
+            });
+
+            $('#interestTable').DataTable({
+                language: {
+                    search: "Buscar:",
+                    lengthMenu: "Mostrar _MENU_ registros",
+                    info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                    infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                    loadingRecords: "Cargando...",
+                    zeroRecords: "No se encontraron resultados",
+                    emptyTable: "No hay datos disponibles",
+                    paginate: {
+                        first: "Primero",
+                        previous: "Anterior",
+                        next: "Siguiente",
+                        last: "Último"
+                    }
+                }
+            });
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    }
+
+    function fillAndShowModalInterest(interest) {
+        document.getElementById('interestId').value = interest.id || '';
+        document.getElementById('createdAt').value = interest.createdAt || '-';
+        document.getElementById('norm').value = interest.norm || '';
+        document.getElementById('interestAmount').value = interest.interest || '';
+        document.getElementById('fromDate').value = interest.fromDate || '';
+        document.getElementById('toDate').value = interest.toDate || '';
+
+        document.querySelectorAll('.edit-only').forEach(field => field.style.display = 'block');
+        interestModal.show();
+        document.getElementById('editInterest').style.display = 'inline-block';
+        document.getElementById('saveInterest').style.display = 'none';
+    }
+
+    loadInterests();
+}
+
 
 
 
