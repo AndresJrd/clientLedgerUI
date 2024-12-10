@@ -1709,6 +1709,7 @@ async function loadPlanillaModificadorBase() {
 
         planillas.forEach(planilla => {
             const option = document.createElement('option');
+            option.id = planilla.id;
             option.value = `${planilla.fromDate},${planilla.toDate}`;
             option.textContent = `${planilla.fromDate} - ${planilla.toDate} | ${planilla.name} | ${planilla.dispositionId}`;
             planillaSelect.appendChild(option);
@@ -1890,8 +1891,6 @@ async function saveModifier() {
 }
 
 
-
-
 function openEditModal(row) {
     // Obtener los datos del row correspondiente
     const salaryModifierId = row.cells[1].textContent.trim(); // ID del modificador
@@ -1923,18 +1922,19 @@ async function updateModifier() {
     }
 
     const salaryModifierId = document.getElementById('editModifierButton').getAttribute('data-modifier-id');
+    const idPlanilla = document.getElementById('planillaModifierNameSelect').value;
     const amount = parseFloat(document.getElementById('modifierAmountInput').value);
-    const markUp = document.getElementById('modifierTypeSelect').value;
+    const type = document.getElementById('modifierTypeSelect').value;
     const token = localStorage.getItem('token');
 
     try {
-        const response = await fetch(`${BASE_URL}/v1/api/period/modifier/${salaryModifierId}`, {
+        const response = await fetch(`${BASE_URL}/v1/api/period/${idPlanilla}/modifier`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ amount, markUp })
+            body: JSON.stringify({ amount, type, salaryModifierId})
         });
 
         if (!response.ok) {
@@ -1942,6 +1942,9 @@ async function updateModifier() {
         }
 
         Swal.fire('Éxito', 'Registro actualizado correctamente.', 'success');
+
+            document.getElementById('saveModifierButton').style.display = 'block';
+    document.getElementById('editModifierButton').style.display = 'none';
 
         // Cerrar el modal
         const modal = bootstrap.Modal.getInstance(document.getElementById('cargarRegistroModal'));
@@ -1964,7 +1967,6 @@ async function updateModifier() {
 //#############################################################################################################
 //#############################################################################################################
 //#############################################################################################################
-
 async function loadPlanillaRolBase() {
     const planillaSelect = document.getElementById('planillaRoleSelect');
     const token = localStorage.getItem('token');
@@ -1987,17 +1989,19 @@ async function loadPlanillaRolBase() {
 
         planillas.forEach(planilla => {
             const option = document.createElement('option');
+            option.dataset.id = planilla.id;
             option.value = `${planilla.fromDate},${planilla.toDate}`;
             option.textContent = `${planilla.fromDate} - ${planilla.toDate} | ${planilla.name} | ${planilla.dispositionId}`;
             planillaSelect.appendChild(option);
         });
 
          planillaSelect.addEventListener('change', fetchPlanillaRoleCategoryDetails);
-          const form = document.getElementById('roleCategoryForm');
+        const form = document.getElementById('roleCategoryForm');
         form.addEventListener('submit', async (event) => {
         event.preventDefault(); // Prevenir la recarga de la página
         await saveRoleCategory(); // Llamar a la función para guardar los datos
     });
+         document.getElementById('editRoleCategoryButton').addEventListener('click', updatePlanillaRol);
 
         loadRoleAndCategorySelects();
     } catch (error) {
@@ -2109,12 +2113,12 @@ async function fetchPlanillaRoleCategoryDetails() {
                         <td>${modifier.createdBy || '-'}</td>
                         <td>${modifier.updatedAt ? new Date(modifier.updatedAt).toLocaleString() : '-'}</td>
                         <td>${modifier.updatedBy || '-'}</td>
+                        <td>${modifier.roleId || '-'}</td>
                     `;
                     planillaBaseTable.appendChild(row);
                 });
             }
         });
-
 
 
         $('#salaryRoleTable').DataTable({
@@ -2135,17 +2139,43 @@ async function fetchPlanillaRoleCategoryDetails() {
             }
         });
 
-         /*   document.getElementById('salaryRoleTable').addEventListener('click', (event) => {
+            document.getElementById('salaryRoleTable').addEventListener('click', (event) => {
         const target = event.target.closest('svg');
         if (target) {
             const row = target.closest('tr');
-            openEditModal(row);
+            openEditModalRolPlanilla(row);
         }
-            });*/
+            });
     } catch (error) {
         console.error('Error al obtener los detalles de la planilla:', error);
         Swal.fire('Error', error.message, 'error');
     }
+}
+
+function openEditModalRolPlanilla(row) {
+    console.log(row);
+    // Obtener los datos del row correspondiente
+    const salaryModifierId = row.cells[1].textContent.trim(); // ID del modificador
+    const amount = row.cells[4].textContent.trim(); // Monto
+    const rol = row.cells[11].textContent.trim(); // rol
+    const category = row.cells[6].textContent.trim(); // category
+
+    // Pre-popular los campos del modal
+    document.getElementById('roleNameCategorySelect').value = rol;
+    document.getElementById('categoryCategoryInput').value = category;
+    document.getElementById('amountCategoryInput').value = amount;
+
+
+    // Guardar el ID del modificador en un atributo de datos para usarlo en el PATCH
+    document.getElementById('editRoleCategoryButton').setAttribute('data-modifier-id', salaryModifierId);
+
+    // Mostrar el botón de edición y ocultar el botón de guardar
+    document.getElementById('saveRoleCategoryPlanilla').style.display = 'none';
+    document.getElementById('editRoleCategoryButton').style.display = 'block';
+
+    // Abrir el modal
+    const modal = new bootstrap.Modal(document.getElementById('cargarRegistroRolModal'));
+    modal.show();
 }
 
 async function saveRoleCategory() {
@@ -2188,6 +2218,49 @@ async function saveRoleCategory() {
     } catch (error) {
         console.error('Error al guardar el registro:', error);
         Swal.fire('Error', error.message, 'error');
+    }
+}
+
+
+async function updatePlanillaRol(event) {
+    event.preventDefault();
+
+    const roleId = document.getElementById('roleNameCategorySelect').value;
+    const categoryId = document.getElementById('categoryCategoryInput').value;
+    const amount = document.getElementById('amountCategoryInput').value;
+    const planillaSelect = document.getElementById('planillaRoleSelect');
+    const selectedOption = planillaSelect.options[planillaSelect.selectedIndex];
+    const planillaId = selectedOption.dataset.id;
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/period/${planillaId}/role-category`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ roleId, categoryId, amount })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update role category');
+        }
+
+        // Notificar al usuario que la operación fue exitosa
+        Swal.fire('Actualizado', 'El registro se actualizó correctamente.', 'success');
+
+        document.getElementById('saveRoleCategoryPlanilla').style.display = 'block';
+        document.getElementById('editRoleCategoryButton').style.display = 'none';
+
+        // Opcional: Recargar los datos en la tabla o cerrar el modal
+        $('#cargarRegistroRolModal').modal('hide');
+
+        fetchPlanillaRoleCategoryDetails();
+        // Opcional: Recargar datos relacionados si es necesario
+    } catch (error) {
+        console.error('Error:', error);
+        Swal.fire('Error', 'No se pudo actualizar el registro.', 'error');
     }
 }
 
