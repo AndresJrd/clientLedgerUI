@@ -2227,6 +2227,8 @@ async function loadConsortiums() {
             option.textContent = consortium.name;
             consortiumSelect.appendChild(option);
         });
+        calculateDebtButton.removeEventListener('click', calculateDebt);
+        document.getElementById('calculateDebtButton').addEventListener('click', calculateDebt);
     } catch (error) {
         console.error('Error al cargar los consorcios:', error);
         Swal.fire('Error', 'No se pudieron cargar los consorcios.', 'error');
