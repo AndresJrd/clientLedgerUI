@@ -121,17 +121,13 @@ function loadContent(contentId) {
         'empleadosConsorcio': 'empleadosConsorcio.html',
         'historicoEmpleados': 'historicoEmpleados.html',
         'registroBasePlanillas': 'registroBasePlanillas.html',
-        'calculoDeuda': 'calculoDeuda.html',
-        'conceptConfig': 'conceptConfig.html'
+        'calculoDeuda': 'calculoDeuda.html'
     };
     const url = contentMapping[contentId];
     fetch(url)
         .then(response => response.text())
         .then(html => {
             document.getElementById('content').innerHTML = html;
-            if (contentId === 'conceptConfig') {
-                initializeConceptConfigView();
-            }
             if (contentId === 'interest') {
                 initializeInterestView();
             }
@@ -2200,8 +2196,6 @@ async function saveRoleCategory() {
 //#############################################################################################################
 //#############################################################################################################
 
-
-
 async function loadConsortiums() {
     const consortiumSelect = document.getElementById('consortiumSelect');
     const token = localStorage.getItem('token');
@@ -2227,12 +2221,13 @@ async function loadConsortiums() {
             option.textContent = consortium.name;
             consortiumSelect.appendChild(option);
         });
+        calculateDebtButton.removeEventListener('click', calculateDebt);
+        document.getElementById('calculateDebtButton').addEventListener('click', calculateDebt);
     } catch (error) {
         console.error('Error al cargar los consorcios:', error);
         Swal.fire('Error', 'No se pudieron cargar los consorcios.', 'error');
     }
 }
-
 
 
 async function calculateDebt() {
@@ -2492,177 +2487,6 @@ function initializeInterestView() {
     loadInterests();
 }
 
-//#############################################################################################################
-//#############################################################################################################
-//#############################################################################################################
-//                                               Concept Configurations
-//#############################################################################################################
-//#############################################################################################################
-//#############################################################################################################
-
-function initializeConceptConfigView() {
-    const newConfigBtn = document.getElementById('newConfigBtn');
-    const conceptConfigForm = document.getElementById('conceptConfigForm');
-    const conceptConfigModal = new bootstrap.Modal(document.getElementById('conceptConfigModal'));
-    const conceptTypeDropdown = document.getElementById('conceptType');
-
-    newConfigBtn.addEventListener('click', handleNewConfig);
-
-    conceptConfigForm.addEventListener('submit', function (event) {
-        event.preventDefault();
-        const action = event.submitter.getAttribute('data-action');
-        if (action === 'editConfig') {
-            updateConceptConfig();
-        } else {
-            createConceptConfig();
-        }
-    });
-
-    async function handleNewConfig() {
-        conceptConfigForm.reset();
-        await loadConceptTypes(); // Carga las opciones del dropdown antes de abrir el modal
-        conceptConfigModal.show();
-        document.getElementById('editConfig').style.display = 'none';
-        document.getElementById('saveConfig').style.display = 'inline-block';
-    }
-
-    async function createConceptConfig() {
-        if (!conceptConfigForm.checkValidity()) {
-            conceptConfigForm.classList.add('was-validated');
-            return;
-        }
-        const configData = gatherConceptConfigFormData();
-        await saveConceptConfig('POST', configData, 'Configuración creada exitosamente');
-    }
-
-    async function updateConceptConfig() {
-        if (!conceptConfigForm.checkValidity()) {
-            conceptConfigForm.classList.add('was-validated');
-            return;
-        }
-        const configData = gatherConceptConfigFormData();
-        configData.id = document.getElementById('configId').value;
-        await saveConceptConfig('PATCH', configData, 'Configuración actualizada exitosamente');
-    }
-
-    function gatherConceptConfigFormData() {
-        return {
-            name: document.getElementById('configName').value,
-            conceptType: document.getElementById('conceptType').value
-        };
-    }
-
-    async function saveConceptConfig(method, data, successMessage) {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BASE_URL}/v1/api/concept-config`, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (!response.ok) {
-                const errorJson = await response.json();
-                const errorMessage = errorJson.result || 'Ocurrió un error inesperado';
-                Swal.fire('Error', errorMessage);
-            } else {
-                Swal.fire('Éxito', successMessage, 'success').then(() => loadConceptConfigs());
-            }
-
-            conceptConfigModal.hide();
-        } catch (error) {
-            Swal.fire('Error', error.message, 'error');
-        }
-    }
-
-    async function loadConceptConfigs() {
-        if ($.fn.DataTable.isDataTable('#conceptConfigTable')) {
-            $('#conceptConfigTable').DataTable().destroy();
-        }
-
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BASE_URL}/v1/api/concept-config/all`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!response.ok) {
-                throw new Error('Error al cargar las configuraciones.');
-            }
-
-            const configs = await response.json();
-            const tableBody = document.querySelector('#conceptConfigTable tbody');
-            tableBody.innerHTML = configs.map(config => `
-                <tr>
-                    <td><i class="bi bi-search" style="cursor: pointer;"></i></td>
-                    <td style="display: none;">${config.id}</td>
-                    <td>${config.name}</td>
-                    <td>${config.conceptType}</td>
-                </tr>
-            `).join('');
-
-            document.querySelectorAll('.bi-search').forEach((icon, index) => {
-                icon.addEventListener('click', () => fillAndShowModalConfig(configs[index]));
-            });
-
-            $('#conceptConfigTable').DataTable({
-                language: {
-                    search: "Buscar:",
-                    lengthMenu: "Mostrar _MENU_ registros",
-                    info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
-                    infoEmpty: "Mostrando 0 a 0 de 0 registros",
-                    loadingRecords: "Cargando...",
-                    zeroRecords: "No se encontraron resultados",
-                    emptyTable: "No hay datos disponibles",
-                    paginate: {
-                        first: "Primero",
-                        previous: "Anterior",
-                        next: "Siguiente",
-                        last: "Último"
-                    }
-                }
-            });
-        } catch (error) {
-            Swal.fire('Error', error.message, 'error');
-        }
-    }
-
-    async function loadConceptTypes() {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BASE_URL}/v1/api/loader/concept-types`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!response.ok) {
-                throw new Error('Error al cargar los tipos de conceptos.');
-            }
-
-            const conceptTypes = await response.json();
-            conceptTypeDropdown.innerHTML = `
-                <option value="" disabled selected>Seleccione un tipo de concepto</option>
-                ${conceptTypes.map(type => `<option value="${type}">${type}</option>`).join('')}
-            `;
-        } catch (error) {
-            Swal.fire('Error', error.message, 'error');
-        }
-    }
-
-    async function fillAndShowModalConfig(config) {
-        await loadConceptTypes();
-        document.getElementById('configName').value = config.name || '';
-        document.getElementById('conceptType').value = config.conceptType || '';
-
-        conceptConfigModal.show();
-        document.getElementById('editConfig').style.display = 'inline-block';
-        document.getElementById('saveConfig').style.display = 'none';
-    }
-
-    loadConceptConfigs();
-}
 
 
 
