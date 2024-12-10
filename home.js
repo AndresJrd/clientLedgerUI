@@ -2252,7 +2252,7 @@ async function calculateDebt() {
 
     try {
         const response = await fetch(
-            `${BASE_URL}/v1/api/debt/calculate/mock?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}&dueDate=${dueDate}`,
+            `${BASE_URL}/v1/api/debt/calculate?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}&dueDate=${dueDate}`,
             {
                 method: 'GET',
                 headers: {
@@ -2277,7 +2277,7 @@ function displayDebtData(debtData) {
     const tableBody = document.querySelector('#consortiumDebtTable tbody');
     const totalCapital = document.getElementById('totalCapital');
     const totalInterest = document.getElementById('totalInterest');
-    
+
         if ($.fn.DataTable.isDataTable('#consortiumDebtTable')) {
         $('#consortiumDebtTable').DataTable().clear().destroy();
     }
