@@ -26,8 +26,6 @@
                             <th scope="col">Consorcio</th>
                             <th scope="col">Rol</th>
                             <th scope="col">Categoría</th>
-                            <th scope="col">Fecha</th>
-                            <th scope="col">Antigüedad</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -95,34 +93,46 @@
                                 <input type="number" id="employeeSeniority" class="form-control" required min="0">
                             </div>
                         </div>
+
+                        <hr>
+                        <h5>Modificadores Salariales</h5>
+                         <div id="conceptsContainer">
+                            <div class="row g-2 mb-2 concept-row">
+                            <div class="col-md-12">
+                               <select id="slaryModifierId" class="form-select" required multiple>
+                                    <option value="" disabled selected>Seleccione los Modificadores</option>
+                                    <!-- Opciones dinámicas -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                         <hr>
                         <h5>Conceptos</h5>
                         <div id="conceptsContainer">
                             <div class="row g-2 mb-2 concept-row">
                                 <div class="col-md-4">
                                     <label for="conceptId" class="form-label">Concepto</label>
-                                    <select class="form-select conceptId" required>
+                                    <select class="form-select conceptId" id="conceptId" required>
                                         <option value="" disabled selected>Seleccione un concepto</option>
                                     </select>
                                 </div>
                                 <div class="col-md-3">
                                     <label for="conceptType" class="form-label">Tipo</label>
-                                    <select class="form-select conceptType" required>
-                                        <option value="Fijo">Fijo</option>
-                                        <option value="Porcentaje">Porcentaje</option>
-                                    </select>
+                                    <input type="text" id="conceptType" class="form-control conceptType" readonly>
                                 </div>
                                 <div class="col-md-3">
                                     <label for="conceptAmount" class="form-label">Monto</label>
-                                    <input type="number" class="form-control conceptAmount" required min="0.01" step="0.01">
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="conceptDetail" class="form-label">Detalle</label>
-                                    <input type="text" class="form-control conceptDetail">
+                                    <input type="number" id="conceptAmount" class="form-control conceptAmount" required min="0.01" step="0.01">
                                 </div>
                             </div>
                         </div>
                         <button type="button" id="addConceptBtn" class="btn btn-sm btn-secondary">Añadir Concepto</button>
+                        <div id="conceptsListContainer" class="mt-3">
+                            <ul id="conceptsList" class="list-group">
+                            <!-- Aquí se insertarán los conceptos añadidos dinámicamente -->
+                            </ul>
+                        </div>
+
                     </form>
                 </div>
                 <div class="modal-footer">

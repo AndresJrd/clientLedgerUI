@@ -178,6 +178,7 @@ function loadContent(contentId) {
            }
            if(contentId === 'historicoEmpleados') {
              initializeEmployeeHistory();
+             loadEmployeeHistory();
            }
 
            if(contentId === 'calculoDeuda') {
@@ -1376,10 +1377,45 @@ async function fetchEmployeesByConsortium() {
 //#############################################################################################################
 //#############################################################################################################
 //#############################################################################################################
-//                                       EMPLOYEE HISTORICAL
+//                                       EMPLOYEE HISTORY
 //#############################################################################################################
 //#############################################################################################################
 //#############################################################################################################
+
+
+
+function loadEmployeeHistory() {
+    fetch(`${BASE_URL}/v1/api/employeeHistory/all`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => populateEmployeeHistoryTable(data))
+    .catch(error => {
+        console.error('Error fetching employee history:', error);
+        alert('No se pudo cargar el historial de empleados.');
+    });
+}
+
+function populateEmployeeHistoryTable(data) {
+    const tableBody = document.getElementById('employeeHistoryTable').getElementsByTagName('tbody')[0];
+    tableBody.innerHTML = ''; // Limpiar la tabla antes de agregar nuevos datos
+
+    data.forEach(item => {
+        const row = tableBody.insertRow();
+        row.insertCell(0).innerHTML = '-'; // Asumiendo que esto podría ser un botón o enlace
+        row.insertCell(1).textContent = item.employee.firstName + ' ' + item.employee.lastName;
+        row.insertCell(2).textContent = item.employee.documentNumber;
+        row.insertCell(3).textContent = item.consourtium.name;
+        row.insertCell(4).textContent = item.roleName;
+        row.insertCell(5).textContent = item.salaryCategoryLevel;
+        // Añade más celdas según sea necesario
+    });
+}
+
 
 
 function populateSelect(selectId, data, defaultOptionText, formatter) {
@@ -1416,6 +1452,17 @@ async function loadSelectData(selectId, url, defaultOptionText, formatter) {
     }
 }
 
+function getSelectedModifiers() {
+    const select = document.getElementById('slaryModifierId');
+    const selectedValues = Array.from(select.selectedOptions).map(option => option.value);
+    return selectedValues;
+}
+
+
+let isListenerAdded = false;
+let isAddConceptListenerAdded = false;
+let conceptsList = [];
+let isSaveEmployeeHistory = false;
 
 function initializeEmployeeHistory() {
     console.log('Planilla view initialized');
@@ -1450,10 +1497,170 @@ function initializeEmployeeHistory() {
             item =>  item.level
         );
 
+        loadSelectData(
+            'conceptId',
+            `${BASE_URL}/v1/api/concept/all`,
+            'Seleccione una categoría',
+            item =>  `${item.name} - ${item.conceptType} - ${item.amount}`
+        );
+
+        loadSelectData(
+            'slaryModifierId',
+            `${BASE_URL}/v1/api/modifier/all`,
+            'Seleccione una categoría',
+            item =>  item.name
+        );
+
+
+    document.getElementById('historyModal').addEventListener('show.bs.modal', () => {
+        document.getElementById('historyForm').reset();
+
+    });
+
+
+    if(! isSaveEmployeeHistory){
+        isSaveEmployeeHistory = true;
+        document.getElementById('historyForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    submitHistoryForm();
+});
+    }
+
+
+
+      if (!isAddConceptListenerAdded) {
+            document.getElementById('addConceptBtn').addEventListener('click', addConcept);
+            isAddConceptListenerAdded = true;
+        }
+
+
+        if (!isListenerAdded) {
+            const conceptSelect = document.getElementById('conceptId');
+            const conceptTypeInput = document.getElementById('conceptType');
+            const conceptAmountInput = document.getElementById('conceptAmount');
+
+            conceptSelect.addEventListener('change', function () {
+                const selectedOption = this.options[this.selectedIndex];
+                if (selectedOption) {
+                    const details = selectedOption.textContent.split(' - ');
+                    if (details.length > 2) {
+                        conceptTypeInput.value = details[1];
+                        conceptAmountInput.value = details[2];
+                    }
+                }
+            });
+
+            isListenerAdded = true;  // Marcar que el listener ha sido añadido
+        }
+
         // Mostrar el modal
         historyModal.show();
     });
 }
+
+
+
+function addConcept() {
+    const conceptSelect = document.getElementById('conceptId');
+    const conceptAmountInput = document.getElementById('conceptAmount');
+    const selectedOption = conceptSelect.selectedOptions[0];
+    const conceptDetails = selectedOption.textContent.split(' - ');
+    const conceptId = parseInt(conceptSelect.value);
+    const conceptAmount = parseFloat(conceptAmountInput.value);
+
+    if (conceptId && conceptAmount && !conceptsList.some(concept => concept.conceptConfigId === conceptId)) {
+        conceptsList.push({
+            conceptConfigId: conceptId,
+            name: conceptDetails[0],
+            amount: conceptAmount
+        });
+        updateConceptsUI();
+        conceptAmountInput.value = ''; // Reset amount input after adding
+    } else {
+        alert('Debe seleccionar un concepto y especificar un monto válido, sin duplicados.');
+    }
+}
+
+function removeConcept(conceptConfigId) {
+    conceptsList = conceptsList.filter(concept => concept.conceptConfigId !== conceptConfigId);
+    updateConceptsUI();
+}
+
+function updateConceptsUI() {
+    const conceptsListContainer = document.getElementById('conceptsList');
+    conceptsListContainer.innerHTML = ''; // Limpia la lista actual
+
+    // Añade cada concepto como un elemento de la lista
+    conceptsList.forEach(concept => {
+        const listItem = document.createElement('li');
+        listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+        listItem.innerHTML = `${concept.name} - $${concept.amount.toFixed(2)}`;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'btn btn-danger btn-sm';
+        removeBtn.textContent = 'Eliminar';
+        // Establecer el tipo del botón para evitar que actúe como submit
+        removeBtn.type = 'button';
+        removeBtn.onclick = function() {
+            removeConcept(concept.conceptConfigId);
+        };
+
+        listItem.appendChild(removeBtn);
+        conceptsListContainer.appendChild(listItem);
+    });
+}
+
+
+
+function submitHistoryForm() {
+    const employeeId = document.getElementById('employeeId').value;
+    const consortiumId = document.getElementById('consortiumId').value;
+    const roleId = document.getElementById('roleId').value;
+    const salaryCategoryId = document.getElementById('salaryCategoryId').value;
+    // Obtiene el valor de fromDate y establece explícitamente el día a '01'
+    const fromDateValue = document.getElementById('fromDate').value; // en formato YYYY-MM
+    const fromDate = new Date(`${fromDateValue}-01`); // Añade '-01' para establecer el día
+
+    // Calcula el último día del mes para toDate
+    const toDate = new Date(fromDate.getFullYear(), fromDate.getMonth() + 1, 0);
+
+    const employeeSeniority = document.getElementById('employeeSeniority').value;
+    const retirementMultiplier = document.getElementById('retirementMultiplier').value;
+    const salaryModifierIds = getSelectedModifiers();
+
+    const formData = {
+        employeeId,
+        consortiumId,
+        roleId,
+        salaryCategoryId,
+        fromDate,
+        toDate,
+        employeeSeniority,
+        retirementMultiplier,
+        concepts: conceptsList,
+        salaryModifierIds
+    };
+
+    fetch('http://localhost:5050/v1/api/employeeHistory', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert('Historial guardado correctamente!');
+        console.log(data);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al guardar el historial.');
+    });
+}
+
+
 
 //#############################################################################################################
 //#############################################################################################################
