@@ -122,13 +122,17 @@ function loadContent(contentId) {
         'historicoEmpleados': 'historicoEmpleados.html',
         'registroBasePlanillas': 'registroBasePlanillas.html',
         'calculoDeuda': 'calculoDeuda.html',
-        'conceptConfig': 'conceptConfig.html'
+        'conceptConfig': 'conceptConfig.html',
+        'concept': 'concept.html'
     };
     const url = contentMapping[contentId];
     fetch(url)
         .then(response => response.text())
         .then(html => {
             document.getElementById('content').innerHTML = html;
+            if (contentId === 'concept') {
+                initializeConceptView();
+            }
             if (contentId === 'conceptConfig') {
                 initializeConceptConfigView();
             }
@@ -2668,5 +2672,200 @@ function initializeConceptConfigView() {
     loadConceptConfigs();
 }
 
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                               Concept
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+
+function initializeConceptView() {
+    const newConceptBtn = document.getElementById('newConceptBtn');
+    const conceptForm = document.getElementById('conceptForm');
+    const conceptModal = new bootstrap.Modal(document.getElementById('conceptModal'));
+
+    newConceptBtn.addEventListener('click', handleNewConcept);
+
+    conceptForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const action = event.submitter.getAttribute('data-action');
+        if (action === 'editConcept') {
+            updateConcept();
+        } else {
+            createConcept();
+        }
+    });
+
+    loadConcepts();
+    loadConceptConfigOptions();
+    loadConceptTypeOptions();
+
+    async function handleNewConcept() {
+        conceptForm.reset();
+        document.querySelectorAll('.edit-only').forEach(field => field.style.display = 'none');
+        conceptModal.show();
+        document.getElementById('editConcept').style.display = 'none';
+        document.getElementById('saveConcept').style.display = 'inline-block';
+    }
+
+    async function createConcept() {
+        const conceptData = gatherConceptFormData();
+        await saveConcept('POST', conceptData, 'Concepto creado exitosamente');
+    }
+
+    async function updateConcept() {
+        const conceptData = gatherConceptFormData();
+        conceptData.id = document.getElementById('conceptId').value;
+        await saveConcept('PATCH', conceptData, 'Concepto actualizado exitosamente');
+    }
+
+    function gatherConceptFormData() {
+        return {
+            name: document.getElementById('name').value,
+            detail: document.getElementById('detail').value,
+            amount: parseFloat(document.getElementById('amount').value),
+            conceptType: document.getElementById('conceptType').value,
+            conceptConfigId: parseInt(document.getElementById('conceptConfigId').value, 10)
+        };
+    }
+
+    async function saveConcept(method, data, successMessage) {
+        try {
+            const token = localStorage.getItem('token');
+            console.log("Dato Concept:", data)
+            const response = await fetch(`${BASE_URL}/v1/api/concept`, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const errorJson = await response.json();
+                throw new Error(errorJson.message || 'Ocurrió un error inesperado');
+            }
+
+            conceptModal.hide();
+            Swal.fire('Éxito', successMessage, 'success');
+            loadConcepts();
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    }
+
+    async function loadConcepts() {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BASE_URL}/v1/api/concept/all`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al cargar los conceptos.');
+            }
+
+            const concepts = await response.json();
+            const tableBody = document.querySelector('#conceptTable tbody');
+
+            tableBody.innerHTML = concepts.map(concept => `
+                <tr>
+                    <td><i class="bi bi-search" style="cursor: pointer;"></i></td>
+                    <td style="display: none;">${concept.id}</td>
+                    <td>${concept.name}</td>
+                    <td>${concept.detail}</td>
+                    <td>${concept.amount}</td>
+                    <td>${concept.conceptType}</td>
+                    <td>${concept.conceptConfig.name}</td>
+                </tr>
+            `).join('');
+
+            document.querySelectorAll('.bi-search').forEach((icon, index) => {
+                icon.addEventListener('click', () => fillAndShowModal(concepts[index]));
+            });
+
+            $('#conceptTable').DataTable();
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    }
+
+    function fillAndShowModal(concept) {
+        document.getElementById('conceptId').value = concept.id;
+        document.getElementById('name').value = concept.name;
+        document.getElementById('detail').value = concept.detail;
+        document.getElementById('amount').value = concept.amount;
+        document.getElementById('conceptType').value = concept.conceptType;
+        document.getElementById('conceptConfigId').value = concept.conceptConfig.id;
+
+        document.querySelectorAll('.edit-only').forEach(field => field.style.display = 'block');
+        document.getElementById('editConcept').style.display = 'inline-block';
+        document.getElementById('saveConcept').style.display = 'none';
+
+        const conceptModal = bootstrap.Modal.getInstance(document.getElementById('conceptModal'));
+        conceptModal.show();
+    }
+
+    async function loadConceptConfigOptions() {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BASE_URL}/v1/api/concept-config/all`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al cargar las configuraciones de conceptos.');
+            }
+
+            const configs = await response.json();
+            const configSelect = document.getElementById('conceptConfigId');
+            configSelect.innerHTML = '<option value="" disabled selected>Seleccione una configuración</option>';
+            configs.forEach(config => {
+                const option = document.createElement('option');
+                option.value = config.id;
+                option.textContent = config.name;
+                configSelect.appendChild(option);
+            });
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    }
+
+    async function loadConceptTypeOptions() {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BASE_URL}/v1/api/loader/markup-types`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al cargar los tipos de conceptos.');
+            }
+
+            const types = await response.json();
+            const typeSelect = document.getElementById('conceptType');
+            typeSelect.innerHTML = '<option value="" disabled selected>Seleccione un tipo</option>';
+            types.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                typeSelect.appendChild(option);
+            });
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    }
+}
 
 
