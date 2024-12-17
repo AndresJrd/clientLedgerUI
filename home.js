@@ -27,11 +27,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 async function validateToken(token) {
+
     try {
-        const response = await fetch(`${BASE_URL}/api/validatetoken`, {
+        const response = await fetch(`${BASE_URL}/v1/api/users/validatetoken`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token })
+            headers: { 'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` }
         });
         return response.ok;
     } catch (error) {
@@ -1760,9 +1761,16 @@ function initializePlanillaBase() {
     if (savePlanillaMButton) {
         savePlanillaMButton.addEventListener('click', savePlanilla);
     }
+
+    const modalElement = document.getElementById('cargarPlanillaModal');
+    if (modalElement) {
+        modalElement.addEventListener('hidden.bs.modal', function () {
+            resetModal();  // Llama a resetear el modal cuando se cierra
+        });
+    }
+
 }
 
-// Carga la tabla con las planillas
 async function loadPlanillaBase() {
     const tableBody = document.querySelector('#planillaBaseTable tbody');
     const token = localStorage.getItem('token');
@@ -1790,6 +1798,17 @@ async function loadPlanillaBase() {
 
         // Rellena la tabla con las planillas
         planillas.forEach(planilla => {
+            const fromDate = new Date(planilla.fromDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const toDate = new Date(planilla.toDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+            const createdAt = planilla.createdAt ? 
+                `${new Date(planilla.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}, ` +
+                new Date(planilla.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : '-';
+
+            const updatedAt = planilla.updatedAt ? 
+                `${new Date(planilla.updatedAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}, ` +
+                new Date(planilla.updatedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : '-';
+
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>
@@ -1800,11 +1819,11 @@ async function loadPlanillaBase() {
                 <td style="display: none;">${planilla.id}</td>
                 <td>${planilla.dispositionId}</td>
                 <td>${planilla.name}</td>
-                <td>${planilla.fromDate}</td>
-                <td>${planilla.toDate}</td>
-                <td>${new Date(planilla.createdAt).toLocaleString()}</td>
+                <td>${fromDate}</td>
+                <td>${toDate}</td>
+                <td>${createdAt}</td>
                 <td>${planilla.createdBy || '-'}</td>
-                <td>${planilla.updatedAt ? new Date(planilla.updatedAt).toLocaleString() : '-'}</td>
+                <td>${updatedAt}</td>
                 <td>${planilla.updatedBy || '-'}</td>
             `;
             tableBody.appendChild(row);
@@ -1828,11 +1847,103 @@ async function loadPlanillaBase() {
                 },
             },
         });
+
+    document.getElementById('planillaBaseTable').addEventListener('click', (event) => {
+    const target = event.target.closest('svg');
+    if (target) {
+        const row = target.closest('tr');
+        showEditModalPlanillaBase(row);
+    }
+});
+
+
+const editButton = document.getElementById('editPlanillaMButton');
+if (editButton) {
+    editButton.removeEventListener('click', editPlanillaBase); // Remover previos para evitar duplicados
+    editButton.addEventListener('click', editPlanillaBase); // Asegúrate que 'editPlanillaBase' es el nombre correcto
+}
     } catch (error) {
         console.error('Error al cargar las planillas:', error);
         Swal.fire('Error', 'No se pudieron cargar las planillas.', 'error');
     }
 }
+
+function convertDateToMonthInputFormat(date) {
+    // Divide la fecha en partes
+    const parts = date.split('/');
+    // Reordena y devuelve en formato YYYY-MM
+    return `${parts[2]}-${parts[1]}`; // Asume DD/MM/YYYY
+}
+
+function showEditModalPlanillaBase(row) {
+
+    // Extraer los datos de la fila, que se supone están en las celdas de la tabla
+    const id = row.cells[1].textContent;  // Asegúrate de que el índice es correcto
+    const dispositionId = row.cells[2].textContent;
+    const name = row.cells[3].textContent;
+    const fromDate = row.cells[4].textContent;
+    const toDate = row.cells[5].textContent;
+
+    // Convertir fechas al formato adecuado para input de tipo 'month'
+    const formattedFromDate = convertDateToMonthInputFormat(fromDate);
+    const formattedToDate = convertDateToMonthInputFormat(toDate);
+
+    // Setear los valores en el modal
+    document.getElementById('fromDatePicker').value = formattedFromDate;
+    document.getElementById('toDatePicker').value = formattedToDate;
+    document.getElementById('planillaNameInput').value = name;
+    document.getElementById('dispositionNameInput').value = dispositionId;
+
+    // Cambiar visibilidad de los botones
+    document.getElementById('savePlanillaMButton').style.display = 'none';
+    document.getElementById('editPlanillaMButton').style.display = 'block';
+
+    // Guardar el ID de la planilla en un atributo del botón de editar, para usarlo en la petición PATCH
+    document.getElementById('editPlanillaMButton').setAttribute('data-planilla-id', id);
+
+    // Mostrar el modal
+    new bootstrap.Modal(document.getElementById('cargarPlanillaModal')).show();
+}
+
+async function editPlanillaBase() {
+    const id = document.getElementById('editPlanillaMButton').getAttribute('data-planilla-id');
+    const fromDate = document.getElementById('fromDatePicker').value;
+    const toDate = document.getElementById('toDatePicker').value;
+    const name = document.getElementById('planillaNameInput').value.trim();
+    const dispositionId = document.getElementById('dispositionNameInput').value.trim();
+
+    const token = localStorage.getItem('token');
+    const postData = {
+        fromDate,
+        toDate,
+        name,
+        dispositionId,
+    };
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/period/${id}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(postData),
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al editar la planilla.');
+        }
+
+        Swal.fire('Éxito', 'Planilla editada correctamente.', 'success');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('cargarPlanillaModal'));
+        modal.hide();
+        loadPlanillaBase();  // Recargar tabla
+    } catch (error) {
+        console.error('Error al editar la planilla:', error);
+        Swal.fire('Error', error.message, 'error');
+    }
+}
+
 
 // Guarda una nueva planilla
 async function savePlanilla() {
@@ -1873,6 +1984,7 @@ async function savePlanilla() {
         }
 
         Swal.fire('Éxito', 'Planilla creada correctamente.', 'success');
+        resetModal();
 
         // Cerrar el modal
         const modal = bootstrap.Modal.getInstance(document.getElementById('cargarPlanillaModal'));
@@ -1889,6 +2001,25 @@ async function savePlanilla() {
         Swal.fire('Error', error.message, 'error');
     }
 }
+
+function resetModal() {
+    const planillaForm = document.getElementById('planillaBaseForm');
+    if (planillaForm) {
+        planillaForm.reset(); // Resetear todos los inputs del formulario
+        planillaForm.classList.remove('was-validated'); // Remover la clase de validación
+    }
+
+    // Restablecer los estados de los botones
+    document.getElementById('savePlanillaMButton').style.display = 'block';
+    document.getElementById('editPlanillaMButton').style.display = 'none';
+
+    // Limpiar el atributo 'data-planilla-id' si es necesario
+    const editButton = document.getElementById('editPlanillaMButton');
+    if (editButton) {
+        editButton.removeAttribute('data-planilla-id');
+    }
+}
+
 
 //#############################################################################################################
 //#############################################################################################################
@@ -2001,6 +2132,22 @@ async function fetchPlanillaDetails() {
         planillaDetails.forEach(planilla => {
             if (Array.isArray(planilla.salaryModifierPeriodRelationships)) {
                 planilla.salaryModifierPeriodRelationships.forEach(modifier => {
+                                const fromDate = new Date(planilla.fromDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const toDate = new Date(planilla.toDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+            const createdAt = planilla.createdAt ? 
+                `${new Date(planilla.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}, ` +
+                new Date(planilla.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : '-';
+
+            const updatedAt = planilla.updatedAt ? 
+                `${new Date(planilla.updatedAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}, ` +
+                new Date(planilla.updatedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : '-';
+
+                         // Verificamos el tipo de markup para determinar el signo
+            const amountDisplay = modifier.markUpType === "Porcentaje" ?
+                `${parseFloat(modifier.amount).toFixed(2)}%` :
+                `$${parseFloat(modifier.amount).toFixed(2)}`;
+
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>
@@ -2009,14 +2156,14 @@ async function fetchPlanillaDetails() {
                             </svg>
                         </td>
                         <td style="display: none;">${modifier.salaryModifierId}</td>
-                        <td>${planilla.fromDate || '-'}</td>
-                        <td>${planilla.toDate || '-'}</td>
-                        <td>${modifier.amount || '-'}</td>
+                        <td>${fromDate || '-'}</td>
+                        <td>${toDate || '-'}</td>
+                        <td>${amountDisplay}</td> 
                         <td>${modifier.markUpType || '-'}</td>
                         <td>${modifier.salaryModifierName || '-'}</td>
-                        <td>${modifier.createdAt ? new Date(modifier.createdAt).toLocaleString() : '-'}</td>
+                        <td>${createdAt ? new Date(modifier.createdAt).toLocaleString() : '-'}</td>
                         <td>${modifier.createdBy || '-'}</td>
-                        <td>${modifier.updatedAt ? new Date(modifier.updatedAt).toLocaleString() : '-'}</td>
+                        <td>${updatedAt ? new Date(modifier.updatedAt).toLocaleString() : '-'}</td>
                         <td>${modifier.updatedBy || '-'}</td>
                     `;
                     planillaBaseTable.appendChild(row);
@@ -2105,7 +2252,7 @@ async function saveModifier() {
 function openEditModal(row) {
     // Obtener los datos del row correspondiente
     const salaryModifierId = row.cells[1].textContent.trim(); // ID del modificador
-    const amount = row.cells[4].textContent.trim(); // Monto
+    const amount = row.cells[4].textContent.trim().replace(/^\$|\%$/, ''); // Elimina $ al inicio y % al final
     const markUpType = row.cells[5].textContent.trim(); // Tipo
 
     // Pre-popular los campos del modal
@@ -2307,6 +2454,19 @@ async function fetchPlanillaRoleCategoryDetails() {
         planillaDetails.forEach(planilla => {
             if (Array.isArray(planilla.salaryModifierPeriodRelationships)) {
                 planilla.roleCategoryRelationships.forEach(modifier => {
+
+            const fromDate = new Date(planilla.fromDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const toDate = new Date(planilla.toDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+            const createdAt = planilla.createdAt ? 
+                `${new Date(planilla.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}, ` +
+                new Date(planilla.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : '-';
+
+            const updatedAt = planilla.updatedAt ? 
+                `${new Date(planilla.updatedAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}, ` +
+                new Date(planilla.updatedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : '-';
+
+
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>
@@ -2315,15 +2475,14 @@ async function fetchPlanillaRoleCategoryDetails() {
                             </svg>
                         </td>
                         <td style="display: none;">${modifier.salaryModifierId}</td>
-                        <td>${planilla.fromDate || '-'}</td>
-                        <td>${planilla.toDate || '-'}</td>
-                        <td>${modifier.amount || '-'}</td>
+                        <td>${fromDate || '-'}</td>
+                        <td>${toDate || '-'}</td>
+                        <td>$${parseFloat(modifier.amount).toFixed(2)}</td>
                         <td>${modifier.roleName || '-'}</td>
                         <td>${modifier.categoryLevel || '-'}</td>
-                        <td>${modifier.createdAt ? new Date(modifier.createdAt).toLocaleString() : '-'}</td>
+                        <td>${createdAt ? new Date(modifier.createdAt).toLocaleString() : '-'}</td>
                         <td>${modifier.createdBy || '-'}</td>
-                        <td>${modifier.updatedAt ? new Date(modifier.updatedAt).toLocaleString() : '-'}</td>
-                        <td>${modifier.updatedBy || '-'}</td>
+                        <td>${updatedAt ? new Date(modifier.updatedAt).toLocaleString() : '-'}</td>
                         <td>${modifier.roleId || '-'}</td>
                     `;
                     planillaBaseTable.appendChild(row);
@@ -2364,12 +2523,14 @@ async function fetchPlanillaRoleCategoryDetails() {
 }
 
 function openEditModalRolPlanilla(row) {
-    console.log(row);
+    console.log(row); 
     // Obtener los datos del row correspondiente
     const salaryModifierId = row.cells[1].textContent.trim(); // ID del modificador
-    const amount = row.cells[4].textContent.trim(); // Monto
-    const rol = row.cells[11].textContent.trim(); // rol
+    const amount = row.cells[4].textContent.trim().replace(/^\$|\%$/, '');
+    const rol = row.cells[10].textContent.trim(); // rol
     const category = row.cells[6].textContent.trim(); // category
+
+    console.log(`ID: ${salaryModifierId}, Amount: ${amount}, Rol: ${rol}, Category: ${category}`);
 
     // Pre-popular los campos del modal
     document.getElementById('roleNameCategorySelect').value = rol;
@@ -2709,59 +2870,66 @@ function initializeInterestView() {
         }
     }
 
-    async function loadInterests() {
-        if ($.fn.DataTable.isDataTable('#interestTable')) {
-            $('#interestTable').DataTable().destroy();
+async function loadInterests() {
+    if ($.fn.DataTable.isDataTable('#interestTable')) {
+        $('#interestTable').DataTable().destroy();
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${BASE_URL}/v1/api/interest/all`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al cargar los intereses.');
         }
 
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BASE_URL}/v1/api/interest/all`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+        const interests = await response.json();
+        const tableBody = document.querySelector('#interestTable tbody');
+        tableBody.innerHTML = interests.map(interest => {
+            // Cambio de formato de fecha
+            const fromDate = new Date(interest.fromDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const toDate = new Date(interest.toDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-            if (!response.ok) {
-                throw new Error('Error al cargar los intereses.');
-            }
-
-            const interests = await response.json();
-            const tableBody = document.querySelector('#interestTable tbody');
-            tableBody.innerHTML = interests.map(interest => `
+            return `
                 <tr>
                     <td><i class="bi bi-search" style="cursor: pointer;"></i></td>
                     <td style="display: none;">${interest.id}</td>
                     <td>${interest.norm}</td>
-                    <td>${interest.interest}</td>
-                    <td>${interest.fromDate}</td>
-                    <td>${interest.toDate}</td>
+                    <td>${parseFloat(interest.interest).toFixed(2)}</td> 
+                    <td>${fromDate}</td>
+                    <td>${toDate}</td>
                 </tr>
-            `).join('');
+            `;
+        }).join('');
 
-            document.querySelectorAll('.bi-search').forEach((icon, index) => {
-                icon.addEventListener('click', () => fillAndShowModalInterest(interests[index]));
-            });
+        document.querySelectorAll('.bi-search').forEach((icon, index) => {
+            icon.addEventListener('click', () => fillAndShowModalInterest(interests[index]));
+        });
 
-            $('#interestTable').DataTable({
-                language: {
-                    search: "Buscar:",
-                    lengthMenu: "Mostrar _MENU_ registros",
-                    info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
-                    infoEmpty: "Mostrando 0 a 0 de 0 registros",
-                    loadingRecords: "Cargando...",
-                    zeroRecords: "No se encontraron resultados",
-                    emptyTable: "No hay datos disponibles",
-                    paginate: {
-                        first: "Primero",
-                        previous: "Anterior",
-                        next: "Siguiente",
-                        last: "Último"
-                    }
+        $('#interestTable').DataTable({
+            language: {
+                search: "Buscar:",
+                lengthMenu: "Mostrar _MENU_ registros",
+                info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                loadingRecords: "Cargando...",
+                zeroRecords: "No se encontraron resultados",
+                emptyTable: "No hay datos disponibles",
+                paginate: {
+                    first: "Primero",
+                    previous: "Anterior",
+                    next: "Siguiente",
+                    last: "Último"
                 }
-            });
-        } catch (error) {
-            Swal.fire('Error', error.message, 'error');
-        }
+            }
+        });
+    } catch (error) {
+        Swal.fire('Error', error.message, 'error');
     }
+}
+
 
     function fillAndShowModalInterest(interest) {
         document.getElementById('interestId').value = interest.id || '';
