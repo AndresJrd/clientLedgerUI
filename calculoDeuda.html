@@ -11,6 +11,7 @@
     <div class="container mt-5">
         <h1 class="text-center mb-4 border-bottom pb-3">Calcular Deuda del Consorcio</h1>
 
+
         <!-- Formulario de selección -->
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
@@ -37,9 +38,14 @@
                         <input type="date" class="form-control" id="dueDateInput" required>
                     </div>
                 </div>
-                <div class="text-end">
-                    <button class="btn btn-primary" id="calculateDebtButton">Calcular Deuda</button>
-                </div>
+                        <div class="d-flex justify-content-end">
+            <div class="pe-2">
+                <button class="btn btn-primary" id="calculateDebtButton">Calcular Deuda</button>
+            </div>
+            <div>
+                <button id="generateDebtButton" class="btn btn-danger" style="display: none;">Generar Deuda</button>
+            </div>
+        </div>
             </div>
         </div>
 
@@ -78,6 +84,28 @@
             </div>
         </div>
     </div>
+
+    <!-- Decision Modal -->
+<div class="modal fade" id="decisionModal" tabindex="-1" aria-labelledby="decisionModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="decisionModalLabel">Confirmar Generación de Deuda</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Seguro de generar una deuda para el consorcio <span id="consorcioNombre"></span> entre las fechas?</p>
+        <p>Desde: <span id="modalDesde"></span></p>
+        <p>Hasta: <span id="modalHasta"></span></p>
+        <p>Con fecha de pago: <span id="modalFechaPago"></span></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="confirmGenerateDebt">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
