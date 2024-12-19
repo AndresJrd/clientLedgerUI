@@ -3322,11 +3322,13 @@ function initializeConceptView() {
     }
 
     async function createConcept() {
+        console.log("CREATE CONCEPT:")
         const conceptData = gatherConceptFormData();
         await saveConcept('POST', conceptData, 'Concepto creado exitosamente');
     }
 
     async function updateConcept() {
+        console.log("UPDATE CONCEPT:")
         const conceptData = gatherConceptFormData();
         conceptData.id = document.getElementById('conceptId').value;
         await saveConcept('PATCH', conceptData, 'Concepto actualizado exitosamente');
@@ -3408,48 +3410,62 @@ function initializeConceptView() {
     }
 
     function fillAndShowModal(concept) {
+        // Verificar si las opciones ya están cargadas
+        const conceptConfigSelect = document.getElementById('conceptConfigId');
+        if (conceptConfigSelect.options.length === 1) {
+            // Si solo tiene la opción predeterminada, recargar configuraciones
+            loadConceptConfigOptions().then(() => {
+                document.getElementById('conceptConfigId').value = concept.conceptConfig.id;
+            });
+        } else {
+            // Asignar directamente si ya están cargadas
+            document.getElementById('conceptConfigId').value = concept.conceptConfig.id;
+        }
+    
         document.getElementById('conceptId').value = concept.id;
         document.getElementById('name').value = concept.name;
         document.getElementById('detail').value = concept.detail;
         document.getElementById('amount').value = concept.amount;
         document.getElementById('conceptType').value = concept.conceptType;
-        document.getElementById('conceptConfigId').value = concept.conceptConfig.id;
-
+    
+        // Mostrar campos de edición
         document.querySelectorAll('.edit-only').forEach(field => field.style.display = 'block');
         document.getElementById('editConcept').style.display = 'inline-block';
         document.getElementById('saveConcept').style.display = 'none';
-
+    
+        // Mostrar el modal
         const conceptModal = bootstrap.Modal.getInstance(document.getElementById('conceptModal'));
         conceptModal.show();
     }
 
+
     async function loadConceptConfigOptions() {
+        const conceptConfigSelect = document.getElementById('conceptConfigId');
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${BASE_URL}/v1/api/concept-config/all`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-
+    
             if (!response.ok) {
                 throw new Error('Error al cargar las configuraciones de conceptos.');
             }
-
+    
             const configs = await response.json();
-            const configSelect = document.getElementById('conceptConfigId');
-            configSelect.innerHTML = '<option value="" disabled selected>Seleccione una configuración</option>';
+            conceptConfigSelect.innerHTML = '<option value="" disabled selected>Seleccione una configuración</option>';
             configs.forEach(config => {
                 const option = document.createElement('option');
                 option.value = config.id;
                 option.textContent = config.name;
-                configSelect.appendChild(option);
+                conceptConfigSelect.appendChild(option);
             });
         } catch (error) {
+            console.error('Error al cargar configuraciones:', error);
             Swal.fire('Error', error.message, 'error');
         }
     }
+
 
     async function loadConceptTypeOptions() {
         try {
