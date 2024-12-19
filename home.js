@@ -124,7 +124,8 @@ function loadContent(contentId) {
         'registroBasePlanillas': 'registroBasePlanillas.html',
         'calculoDeuda': 'calculoDeuda.html',
         'conceptConfig': 'conceptConfig.html',
-        'concept': 'concept.html'
+        'concept': 'concept.html',
+        'verDeudas': 'verDeudas.html'
     };
     const url = contentMapping[contentId];
     fetch(url)
@@ -188,6 +189,9 @@ function loadContent(contentId) {
 
            if(contentId === 'calculoDeuda') {
             loadConsortiums();
+           }
+           if (contentId === 'verDeudas') {
+            loadConsortiumsVerDeudas();
            }
           
         })
@@ -1411,13 +1415,47 @@ function populateEmployeeHistoryTable(data) {
 
     data.forEach(item => {
         const row = tableBody.insertRow();
-        row.insertCell(0).innerHTML = '-'; // Asumiendo que esto podría ser un botón o enlace
-        row.insertCell(1).textContent = item.employee.firstName + ' ' + item.employee.lastName;
-        row.insertCell(2).textContent = item.employee.documentNumber;
-        row.insertCell(3).textContent = item.consourtium.name;
-        row.insertCell(4).textContent = item.roleName;
-        row.insertCell(5).textContent = item.salaryCategoryLevel;
-        // Añade más celdas según sea necesario
+
+        // Celda para la lupa
+        const searchIconCell = row.insertCell();
+        searchIconCell.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16" style="cursor:pointer;">
+                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+            </svg>`;
+        searchIconCell.style.textAlign = 'center';
+
+        // Celdas ocultas para los IDs
+        const idCell = row.insertCell();
+        idCell.textContent = item.id;
+        idCell.style.display = 'none';
+
+        const employeeIdCell = row.insertCell();
+        employeeIdCell.textContent = item.employee.id;
+        employeeIdCell.style.display = 'none';
+
+        const consortiumIdCell = row.insertCell();
+        consortiumIdCell.textContent = item.consourtium.id;
+        consortiumIdCell.style.display = 'none';
+
+        const salaryCategoryIdCell = row.insertCell();
+        salaryCategoryIdCell.textContent = item.salaryCategoryId;
+        salaryCategoryIdCell.style.display = 'none';
+
+        // Celdas visibles para otros datos
+        const employeeCell = row.insertCell();
+        employeeCell.textContent = item.employee.firstName + ' ' + item.employee.lastName;
+
+        const documentNumberCell = row.insertCell();
+        documentNumberCell.textContent = item.employee.documentNumber;
+
+        const consortiumCell = row.insertCell();
+        consortiumCell.textContent = item.consourtium.name;
+
+        const roleCell = row.insertCell();
+        roleCell.textContent = item.roleName;
+
+        const salaryCategoryLevelCell = row.insertCell();
+        salaryCategoryLevelCell.textContent = item.salaryCategoryLevel;
     });
 }
 
@@ -1646,7 +1684,7 @@ function submitHistoryForm() {
         salaryModifierIds
     };
 
-    fetch('http://localhost:5050/v1/api/employeeHistory', {
+    fetch(`${BASE_URL}/v1/api/employeeHistory`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1664,7 +1702,6 @@ function submitHistoryForm() {
         alert('Error al guardar el historial.');
     });
 }
-
 
 
 //#############################################################################################################
@@ -2646,8 +2683,133 @@ async function updatePlanillaRol(event) {
 //#############################################################################################################
 
 
-
 async function loadConsortiums() {
+    const consortiumSelect = document.getElementById('consortiumSelect');
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/consortium/all`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al cargar los consorcios.');
+        }
+
+        const consortiums = await response.json();
+        consortiumSelect.innerHTML = '<option value="" disabled selected>Seleccione un Consorcio</option>';
+
+        consortiums.forEach(consortium => {
+            const option = document.createElement('option');
+            option.value = consortium.id;
+            option.textContent = consortium.name;
+            consortiumSelect.appendChild(option);
+        });
+
+        document.getElementById('calculateDebtButton').addEventListener('click', async () => {
+            const debtCalculationResponse = await calculateDebt(); // You need to implement this function to call the debt calculation API
+        });
+
+        document.getElementById('generateDebtButton').addEventListener('click', () =>clickGenerateDebt());
+
+        // Hide generate button on change
+        ['consortiumSelect', 'fromDateInput', 'toDateInput'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => {
+                document.getElementById('generateDebtButton').style.display = 'none';
+            });
+        });
+
+
+    } catch (error) {
+        console.error('Error al cargar los consorcios:', error);
+        Swal.fire('Error', 'No se pudieron cargar los consorcios.', 'error');
+    }
+}
+
+function formatDateDDMMYYYY(dateString) {
+    const date = new Date(dateString);
+    
+    // Verificar si la fecha es inválida
+    if (isNaN(date.getTime())) {
+        return 'Fecha inválida'; // Retorna 'Fecha inválida' si la fecha no es válida
+    }
+    
+    const day = String(date.getDate()).padStart(2, '0'); // Asegura dos dígitos para el día
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Asegura dos dígitos para el mes
+    const year = date.getFullYear(); // Año completo
+    return `${day}/${month}/${year}`; // Formato DD/MM/YYYY
+}
+
+
+function clickGenerateDebt(){
+     const consortiumSelect = document.getElementById('consortiumSelect');
+    const fromDateInput = document.getElementById('fromDateInput').value;
+    const toDateInput = document.getElementById('toDateInput').value;
+    const dueDateInput = document.getElementById('dueDateInput').value;
+    const consortiumName = consortiumSelect.options[consortiumSelect.selectedIndex].text;
+
+    Swal.fire({
+        title: 'Confirmar Generación de Deuda',
+        html: `¿Está seguro de generar una deuda para el consorcio <b>${consortiumName}</b>? <br> entre las fechas:<br>` +
+              `Desde: <b>${formatDateDDMMYYYY(fromDateInput)}</b><br>` +
+              `Hasta: <b>${formatDateDDMMYYYY(toDateInput)}</b><br>` +
+              `Con fecha de pago: <b>${formatDateDDMMYYYY(dueDateInput)}</b>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, generar deuda',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            postGenerateDebt(consortiumSelect.value, fromDateInput, toDateInput, dueDateInput);
+        }
+    });
+}
+
+
+function postGenerateDebt(consortiumId, fromDate, toDate, dueDate) {
+    const token = localStorage.getItem('token');
+    fetch(`${BASE_URL}/v1/api/debt`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            consortiumId: consortiumId,
+            fromDate: fromDate,
+            toDate: toDate,
+            dueDate: dueDate
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to generate debt');
+        }
+        return response.json();
+    })
+    .then(data => {
+        Swal.fire(
+            '¡Generada!',
+            'La deuda ha sido generada exitosamente.',
+            'success'
+        );
+    })
+    .catch(error => {
+        Swal.fire(
+            'Error',
+            'No se pudo generar la deuda: ' + error.message,
+            'error'
+        );
+    });
+}
+
+
+/*async function loadConsortiums() {
     const consortiumSelect = document.getElementById('consortiumSelect');
     const token = localStorage.getItem('token');
 
@@ -2678,7 +2840,7 @@ async function loadConsortiums() {
         console.error('Error al cargar los consorcios:', error);
         Swal.fire('Error', 'No se pudieron cargar los consorcios.', 'error');
     }
-}
+}*/
 
 
 
@@ -2771,6 +2933,8 @@ function displayDebtData(debtData) {
             }
         }
     });
+
+     document.getElementById('generateDebtButton').style.display = 'block';
 }
 
 
@@ -3315,5 +3479,123 @@ function initializeConceptView() {
         }
     }
 }
+
+
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                             VER DEUDAS
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+
+async function loadConsortiumsVerDeudas() {
+    const consortiumSelect = document.getElementById('consortiumSelectVerDeudas');
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/consortium/all`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al cargar los consorcios.');
+        }
+
+        const consortiums = await response.json();
+        consortiumSelect.innerHTML = '<option value="" disabled selected>Seleccione un Consorcio</option>';
+
+        consortiums.forEach(consortium => {
+            const option = document.createElement('option');
+            option.value = consortium.id;
+            option.textContent = consortium.name;
+            consortiumSelect.appendChild(option);
+        });
+
+        document.getElementById('buscarDeudas').addEventListener('click',() => listarDeudas());
+
+    } catch (error) {
+        console.error('Error al cargar los consorcios:', error);
+        Swal.fire('Error', 'No se pudieron cargar los consorcios.', 'error');
+    }
+}
+
+
+
+async function listarDeudas() {
+    const consortiumId = document.getElementById('consortiumSelectVerDeudas').value;
+    const fromDate = document.getElementById('fromDateInput').value;
+    const toDate = document.getElementById('toDateInput').value;
+    const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+
+    fetch(`${BASE_URL}/v1/api/debt/search?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}`, {
+        method: 'GET', // Explicitly state the method, even though GET is the default
+        headers: {
+            'Authorization': `Bearer ${token}`, // Include the Authorization header
+            'Content-Type': 'application/json' // Ensure the server expects JSON (if necessary)
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            // Throw an error that includes the status text, which Swal will catch and display
+            throw new Error(`Error: ${response.statusText} (Status ${response.status})`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        populateDebtTable(data);
+    })
+    .catch(error => {
+        // Use Swal to display the error
+        Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: `Failed to fetch debts: ${error.message}`,
+            footer: '<a href="#">Why do I have this issue?</a>' // Optional link for more information
+        });
+    });
+}
+
+
+function populateDebtTable(data) {
+    const table = $('#debtDetailsTable').DataTable({
+        destroy: true, // This allows reinitialization
+        data: flattenDebtData(data),
+        columns: [
+            { data: 'fullName' },
+            { data: 'cuil' },
+            { data: 'dateFrom' },
+            { data: 'dateTo' },
+            { data: 'capital' },
+            { data: 'interest' }
+        ]
+    });
+}
+
+function flattenDebtData(data) {
+    console.log("Debt data received for table:", data);
+    let rows = [];
+    data.forEach(debt => {
+        debt.employeeDebts.forEach(employee => {
+            employee.debts.forEach(detail => {
+                rows.push({
+                    fullName: `${employee.firstName} ${employee.lastName}`,
+                    cuil: employee.cuil,
+                    dateFrom: detail.dateFrom,
+                    dateTo: detail.dateTo,
+                    capital: detail.capital != null ? detail.capital.toFixed(2) : '0.00', // Enhanced null check
+                    interest: detail.interest != null ? detail.interest.toFixed(2) : '0.00' // Enhanced null check
+                });
+            });
+        });
+    });
+    return rows;
+}
+
+
+
 
 
