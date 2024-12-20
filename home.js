@@ -2824,7 +2824,7 @@ async function calculateDebt() {
 
     try {
         const response = await fetch(
-            `${BASE_URL}/v1/api/debt/calculate/mock?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}&dueDate=${dueDate}`,
+            `${BASE_URL}/v1/api/debt/calculate?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}&dueDate=${dueDate}`,
             {
                 method: 'GET',
                 headers: {
@@ -3511,7 +3511,7 @@ async function loadConsortiumsVerDeudas() {
             const toDate = document.getElementById('toDateInput').value;
             const token = localStorage.getItem('token');
 
-            const response = await fetch(`${BASE_URL}/v1/api/debt/searchMock?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}`, {
+            const response = await fetch(`${BASE_URL}/v1/api/debt/search?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`
