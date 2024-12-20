@@ -13,10 +13,8 @@
 
 
         <!-- Formulario de selección -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                Selección de Consorcio y Período
-            </div>
+
+  
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-4 mb-3">
@@ -34,38 +32,56 @@
                         <input type="date" class="form-control" id="toDateInput" required>
                     </div>
                 </div>
+                <br>
                         <div class="d-flex justify-content-end">
             <div class="pe-2">
                 <button class="btn btn-primary" id="buscarDeudas">Buscar Deudas</button>
             </div>
         </div>
             </div>
+
+                    <!-- Tabla de modificadores salariales -->
+        <div class="row">
+            <div class="col">
+                <table class="table table-striped" id="debtDetailsTable">
+                    <thead>
+                        <tr>
+                            <th scope="col">Ver</th>
+                            <th scope="col">Numero</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Desde</th>
+                            <th scope="col">Hasta</th>
+                            <th scope="col">Vencimiento</th>
+                            <th scope="col">Capital</th>
+                            <th scope="col">Interes</th>
+                            <th scope="col" style="display: none;">json</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Los datos de los modificadores salariales se cargarán aquí -->
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-            <div class="card">
-        <div class="card-header bg-secondary text-white">
-            Detalles de Deuda por Consorcio
+    <div class="row">
+            <div class="col">
+                <table class="table table-striped" id="debtDetailsTable2">
+                    <thead>
+                        <tr>
+                            <th scope="col">Nombre</th>
+                            <th scope="col">CUIL</th>
+                            <th scope="col">Capital</th>
+                            <th scope="col">Interés</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Los datos de los modificadores salariales se cargarán aquí -->
+                    </tbody>
+                </table>
+            </div>
         </div>
-        <div class="card-body">
-            <table class="table table-striped" id="debtDetailsTable">
-                <thead>
-                    <tr>
-                        <th>Nombre</th>
-                        <th>CUIL</th>
-                        <th>Desde</th>
-                        <th>Hasta</th>
-                        <th>Capital</th>
-                        <th>Interés</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Data will be filled here via JavaScript -->
-                </tbody>
-            </table>
-        </div>
-    </div>
 
-    
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

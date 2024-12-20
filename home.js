@@ -2809,41 +2809,6 @@ function postGenerateDebt(consortiumId, fromDate, toDate, dueDate) {
 }
 
 
-/*async function loadConsortiums() {
-    const consortiumSelect = document.getElementById('consortiumSelect');
-    const token = localStorage.getItem('token');
-
-    try {
-        const response = await fetch(`${BASE_URL}/v1/api/consortium/all`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error('Error al cargar los consorcios.');
-        }
-
-        const consortiums = await response.json();
-        consortiumSelect.innerHTML = '<option value="" disabled selected>Seleccione un Consorcio</option>';
-
-        consortiums.forEach(consortium => {
-            const option = document.createElement('option');
-            option.value = consortium.id;
-            option.textContent = consortium.name;
-            consortiumSelect.appendChild(option);
-        });
-        calculateDebtButton.removeEventListener('click', calculateDebt);
-        document.getElementById('calculateDebtButton').addEventListener('click', calculateDebt);
-    } catch (error) {
-        console.error('Error al cargar los consorcios:', error);
-        Swal.fire('Error', 'No se pudieron cargar los consorcios.', 'error');
-    }
-}*/
-
-
-
 async function calculateDebt() {
     const consortiumSelect = document.getElementById('consortiumSelect');
     const fromDate = document.getElementById('fromDateInput').value;
@@ -2859,7 +2824,7 @@ async function calculateDebt() {
 
     try {
         const response = await fetch(
-            `${BASE_URL}/v1/api/debt/calculate?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}&dueDate=${dueDate}`,
+            `${BASE_URL}/v1/api/debt/calculate/mock?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}&dueDate=${dueDate}`,
             {
                 method: 'GET',
                 headers: {
@@ -3539,77 +3504,75 @@ async function loadConsortiumsVerDeudas() {
     }
 }
 
+    async function listarDeudas() {
+        try {
+            const consortiumId = document.getElementById('consortiumSelectVerDeudas').value;
+            const fromDate = document.getElementById('fromDateInput').value;
+            const toDate = document.getElementById('toDateInput').value;
+            const token = localStorage.getItem('token');
 
-
-async function listarDeudas() {
-    const consortiumId = document.getElementById('consortiumSelectVerDeudas').value;
-    const fromDate = document.getElementById('fromDateInput').value;
-    const toDate = document.getElementById('toDateInput').value;
-    const token = localStorage.getItem('token'); // Retrieve the token from localStorage
-
-    fetch(`${BASE_URL}/v1/api/debt/search?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}`, {
-        method: 'GET', // Explicitly state the method, even though GET is the default
-        headers: {
-            'Authorization': `Bearer ${token}`, // Include the Authorization header
-            'Content-Type': 'application/json' // Ensure the server expects JSON (if necessary)
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            // Throw an error that includes the status text, which Swal will catch and display
-            throw new Error(`Error: ${response.statusText} (Status ${response.status})`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        populateDebtTable(data);
-    })
-    .catch(error => {
-        // Use Swal to display the error
-        Swal.fire({
-            icon: 'error',
-            title: 'Oops...',
-            text: `Failed to fetch debts: ${error.message}`,
-            footer: '<a href="#">Why do I have this issue?</a>' // Optional link for more information
-        });
-    });
-}
-
-
-function populateDebtTable(data) {
-    const table = $('#debtDetailsTable').DataTable({
-        destroy: true, // This allows reinitialization
-        data: flattenDebtData(data),
-        columns: [
-            { data: 'fullName' },
-            { data: 'cuil' },
-            { data: 'dateFrom' },
-            { data: 'dateTo' },
-            { data: 'capital' },
-            { data: 'interest' }
-        ]
-    });
-}
-
-function flattenDebtData(data) {
-    console.log("Debt data received for table:", data);
-    let rows = [];
-    data.forEach(debt => {
-        debt.employeeDebts.forEach(employee => {
-            employee.debts.forEach(detail => {
-                rows.push({
-                    fullName: `${employee.firstName} ${employee.lastName}`,
-                    cuil: employee.cuil,
-                    dateFrom: detail.dateFrom,
-                    dateTo: detail.dateTo,
-                    capital: detail.capital != null ? detail.capital.toFixed(2) : '0.00', // Enhanced null check
-                    interest: detail.interest != null ? detail.interest.toFixed(2) : '0.00' // Enhanced null check
-                });
+            const response = await fetch(`${BASE_URL}/v1/api/debt/searchMock?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             });
+
+            if (!response.ok) {
+                throw new Error('Error al cargar los conceptos.');
+            }
+
+            const concepts = await response.json();
+            const tableBody = document.querySelector('#debtDetailsTable tbody');
+
+            tableBody.innerHTML = concepts.map(debt => `
+                <tr>
+                    <td>
+                      <i class="bi bi-search view-debts" style="cursor: pointer;" data-employee-debts='${JSON.stringify(debt.employeeDebts)}'></i>
+                    </td>
+                    <td>${debt.id}</td>
+                    <td>${debt.status}</td>
+                    <td>${debt.from}</td>
+                    <td>${debt.to}</td>
+                    <td>${debt.dueDateFirst}</td>
+                    <td>${debt.capital}</td>
+                    <td>${debt.interest}</td>
+                    <td class="d-none">${JSON.stringify(debt.employeeDebts)}</td>
+                </tr>
+            `).join('');
+
+        
+        $('#debtDetailsTable').DataTable();
+
+        $('.view-debts').on('click', function () {
+            const employeeDebts = JSON.parse($(this).closest('tr').find('.d-none').text());
+            renderEmployeeDebts(employeeDebts);
+        });
+
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    }
+
+    function renderEmployeeDebts(employeeDebts) {
+    const debtDetailsTable2 = $('#debtDetailsTable2 tbody');
+    debtDetailsTable2.empty();
+
+    employeeDebts.forEach(employee => {
+        employee.debts.forEach(debt => {
+            const row = `
+                <tr>
+                    <td>${employee.firstName} ${employee.lastName}</td>
+                    <td>${employee.cuil}</td>
+                    <td>${debt.capital?.toFixed(2) || 0}</td>
+                    <td>${debt.interest?.toFixed(2) || 0}</td>
+                </tr>
+            `;
+            debtDetailsTable2.append(row);
         });
     });
-    return rows;
 }
+
 
 
 
