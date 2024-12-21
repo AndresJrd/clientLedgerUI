@@ -125,7 +125,8 @@ function loadContent(contentId) {
         'calculoDeuda': 'calculoDeuda.html',
         'conceptConfig': 'conceptConfig.html',
         'concept': 'concept.html',
-        'verDeudas': 'verDeudas.html'
+        'verDeudas': 'verDeudas.html',
+        'convenios': 'convenios.html'
     };
     const url = contentMapping[contentId];
     fetch(url)
@@ -192,6 +193,9 @@ function loadContent(contentId) {
            }
            if (contentId === 'verDeudas') {
             loadConsortiumsVerDeudas();
+           }
+           if(contentId ==='convenios') {
+            loadConsortiumsConvenios();
            }
           
         })
@@ -2809,41 +2813,6 @@ function postGenerateDebt(consortiumId, fromDate, toDate, dueDate) {
 }
 
 
-/*async function loadConsortiums() {
-    const consortiumSelect = document.getElementById('consortiumSelect');
-    const token = localStorage.getItem('token');
-
-    try {
-        const response = await fetch(`${BASE_URL}/v1/api/consortium/all`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error('Error al cargar los consorcios.');
-        }
-
-        const consortiums = await response.json();
-        consortiumSelect.innerHTML = '<option value="" disabled selected>Seleccione un Consorcio</option>';
-
-        consortiums.forEach(consortium => {
-            const option = document.createElement('option');
-            option.value = consortium.id;
-            option.textContent = consortium.name;
-            consortiumSelect.appendChild(option);
-        });
-        calculateDebtButton.removeEventListener('click', calculateDebt);
-        document.getElementById('calculateDebtButton').addEventListener('click', calculateDebt);
-    } catch (error) {
-        console.error('Error al cargar los consorcios:', error);
-        Swal.fire('Error', 'No se pudieron cargar los consorcios.', 'error');
-    }
-}*/
-
-
-
 async function calculateDebt() {
     const consortiumSelect = document.getElementById('consortiumSelect');
     const fromDate = document.getElementById('fromDateInput').value;
@@ -3539,77 +3508,381 @@ async function loadConsortiumsVerDeudas() {
     }
 }
 
+    async function listarDeudas() {
+        try {
+            const consortiumId = document.getElementById('consortiumSelectVerDeudas').value;
+            const fromDate = document.getElementById('fromDateInput').value;
+            const toDate = document.getElementById('toDateInput').value;
+            const token = localStorage.getItem('token');
 
-
-async function listarDeudas() {
-    const consortiumId = document.getElementById('consortiumSelectVerDeudas').value;
-    const fromDate = document.getElementById('fromDateInput').value;
-    const toDate = document.getElementById('toDateInput').value;
-    const token = localStorage.getItem('token'); // Retrieve the token from localStorage
-
-    fetch(`${BASE_URL}/v1/api/debt/search?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}`, {
-        method: 'GET', // Explicitly state the method, even though GET is the default
-        headers: {
-            'Authorization': `Bearer ${token}`, // Include the Authorization header
-            'Content-Type': 'application/json' // Ensure the server expects JSON (if necessary)
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            // Throw an error that includes the status text, which Swal will catch and display
-            throw new Error(`Error: ${response.statusText} (Status ${response.status})`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        populateDebtTable(data);
-    })
-    .catch(error => {
-        // Use Swal to display the error
-        Swal.fire({
-            icon: 'error',
-            title: 'Oops...',
-            text: `Failed to fetch debts: ${error.message}`,
-            footer: '<a href="#">Why do I have this issue?</a>' // Optional link for more information
-        });
-    });
-}
-
-
-function populateDebtTable(data) {
-    const table = $('#debtDetailsTable').DataTable({
-        destroy: true, // This allows reinitialization
-        data: flattenDebtData(data),
-        columns: [
-            { data: 'fullName' },
-            { data: 'cuil' },
-            { data: 'dateFrom' },
-            { data: 'dateTo' },
-            { data: 'capital' },
-            { data: 'interest' }
-        ]
-    });
-}
-
-function flattenDebtData(data) {
-    console.log("Debt data received for table:", data);
-    let rows = [];
-    data.forEach(debt => {
-        debt.employeeDebts.forEach(employee => {
-            employee.debts.forEach(detail => {
-                rows.push({
-                    fullName: `${employee.firstName} ${employee.lastName}`,
-                    cuil: employee.cuil,
-                    dateFrom: detail.dateFrom,
-                    dateTo: detail.dateTo,
-                    capital: detail.capital != null ? detail.capital.toFixed(2) : '0.00', // Enhanced null check
-                    interest: detail.interest != null ? detail.interest.toFixed(2) : '0.00' // Enhanced null check
-                });
+            const response = await fetch(`${BASE_URL}/v1/api/debt/search?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             });
+
+            if (!response.ok) {
+                throw new Error('Error al cargar los conceptos.');
+            }
+
+            const concepts = await response.json();
+            const tableBody = document.querySelector('#debtDetailsTable tbody');
+
+            tableBody.innerHTML = concepts.map(debt => `
+                <tr>
+                    <td>
+                      <i class="bi bi-search view-debts" style="cursor: pointer;" data-employee-debts='${JSON.stringify(debt.employeeDebts)}'></i>
+                    </td>
+                    <td>${debt.id}</td>
+                    <td>${debt.status}</td>
+                    <td>${debt.from}</td>
+                    <td>${debt.to}</td>
+                    <td>${debt.dueDateFirst}</td>
+                    <td>${debt.capital}</td>
+                    <td>${debt.interest}</td>
+                    <td class="d-none">${JSON.stringify(debt.employeeDebts)}</td>
+                    <td>
+                         ${!['Cancelado', 'Convenio', 'Perdonada'].includes(debt.status) ? 
+                                `<button class="btn btn-warning btn-create-agreement" 
+                                     data-id="${debt.id}" 
+                                    data-capital="${debt.capital}" 
+                                    data-interest="${debt.interest}">
+                                    Crear
+                        </button>` : ''}
+                    </td>
+                </tr>
+        `).join('');
+
+        
+        $('#debtDetailsTable').DataTable();
+
+        $('.view-debts').on('click', function () {
+            const employeeDebts = JSON.parse($(this).closest('tr').find('.d-none').text());
+            renderEmployeeDebts(employeeDebts);
+        });
+
+         $('.btn-create-agreement').on('click', function () {
+            const debtId = $(this).data('id');
+            const capital = parseFloat($(this).data('capital'));
+            const interest = parseFloat($(this).data('interest'));
+            openAgreementModal(debtId, capital + interest);
+        });
+
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    }
+
+    function openAgreementModal(debtId, totalAmount) {
+    const modalHtml = `
+        <div class="modal" tabindex="-1" id="agreementModal">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Crear Convenio</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="agreementForm">
+                            <div class="mb-3">
+                                <label for="debtIdInput" class="form-label">Numero Deuda</label>
+                                <input type="text" class="form-control" id="debtIdInput" value="${debtId}" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label for="totalAmountInput" class="form-label">Monto Total</label>
+                                <input type="number" class="form-control" id="totalAmountInput" value="${totalAmount.toFixed(2)}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="quotaCountSelect" class="form-label">Cuotas</label>
+                                <select class="form-select" id="quotaCountSelect" required>
+                                    ${Array.from({ length: 48 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('')}
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="button" class="btn btn-primary" id="saveAgreement">Guardar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    $(document.body).append(modalHtml);
+    const modal = new bootstrap.Modal(document.getElementById('agreementModal'));
+    modal.show();
+
+    $('#saveAgreement').on('click', async function () {
+        const quotaCount = $('#quotaCountSelect').val();
+        const debtIdInput = $('#debtIdInput').val();
+        const totalAmountInput = $('#totalAmountInput').val();
+
+        if (!quotaCount || !totalAmountInput) {
+            Swal.fire('Error', 'Todos los campos son obligatorios.', 'error');
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('https://clientledger-dev-production.up.railway.app/v1/api/agreement', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    debtId: parseInt(debtIdInput),
+                    totalAmount: parseFloat(totalAmountInput),
+                    quotaCount: parseInt(quotaCount)
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al guardar el convenio.');
+            }
+
+            Swal.fire('Éxito', 'Convenio creado correctamente.', 'success');
+            modal.hide();
+            listarDeudas();
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    });
+
+    $('#agreementModal').on('hidden.bs.modal', function () {
+        $(this).remove();
+    });
+}
+
+    function renderEmployeeDebts(employeeDebts) {
+    const debtDetailsTable2 = $('#debtDetailsTable2 tbody');
+    debtDetailsTable2.empty();
+
+    employeeDebts.forEach(employee => {
+        employee.debts.forEach(debt => {
+            const row = `
+                <tr>
+                    <td>${employee.firstName} ${employee.lastName}</td>
+                    <td>${employee.cuil}</td>
+                    <td>${debt.capital?.toFixed(2) || 0}</td>
+                    <td>${debt.interest?.toFixed(2) || 0}</td>
+                </tr>
+            `;
+            debtDetailsTable2.append(row);
         });
     });
-    return rows;
 }
+
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                             CONVENIOS
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+
+async function loadConsortiumsConvenios() {
+    const consortiumSelect = document.getElementById('consortiumSelectConvenios');
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/consortium/all`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al cargar los consorcios.');
+        }
+
+        const consortiums = await response.json();
+        consortiumSelect.innerHTML = '<option value="" disabled selected>Seleccione un Consorcio</option>';
+
+        consortiums.forEach(consortium => {
+            const option = document.createElement('option');
+            option.value = consortium.id;
+            option.textContent = consortium.name;
+            consortiumSelect.appendChild(option);
+        });
+
+        document.getElementById('buscarConvenios').addEventListener('click',() => listarConvenios());
+
+    } catch (error) {
+        console.error('Error al cargar los consorcios:', error);
+        Swal.fire('Error', 'No se pudieron cargar los consorcios.', 'error');
+    }
+}
+
+    async function listarConvenios() {
+        try {
+            const consortiumId = document.getElementById('consortiumSelectConvenios').value;
+            const token = localStorage.getItem('token');
+
+            const response = await fetch(`${BASE_URL}/v1/api/agreement/consortium/${consortiumId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al cargar los convenios.');
+            }
+
+            const concepts = await response.json();
+            const tableBody = document.querySelector('#conveniosTable tbody');
+
+tableBody.innerHTML = concepts.map(debt => `
+    <tr>
+        <td>
+          <i class="bi bi-search view-agree" style="cursor: pointer;" data-agree='${JSON.stringify(debt.quotas)}'></i>
+        </td>
+        <td>${debt.id}</td>
+        <td>${debt.debtId}</td>
+        <td>${debt.agreementStatus}</td>
+        <td>$${parseFloat(debt.totalAmount).toFixed(2)}</td>
+        <td>${debt.quotas.length}</td>
+        <td class="d-none">${JSON.stringify(debt.quotas)}</td>
+        <td>
+            <button class="btn btn-danger btn-sm delete-convenio" data-id="${debt.id}" data-number="${debt.debtId}">Borrar</button>
+        </td>
+    </tr>
+`).join('');
+
+        
+        $('#conveniosTable').DataTable();
+
+$('.view-agree').on('click', function () {
+    const quotas = JSON.parse($(this).closest('tr').find('.d-none').text());
+    const convenioId = $(this).closest('tr').find('td:nth-child(2)').text(); // Obtén el ID del convenio
+    renderAgreeDetails(quotas, convenioId);
+});
+
+$('#conveniosTable').on('click', '.delete-convenio', function () {
+    const convenioId = $(this).data('id'); // ID interno del convenio
+    const convenioNumber = $(this).data('number'); // Número visible del convenio
+    deleteConvenio(convenioId, convenioNumber);
+});
+
+
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    }
+
+
+function renderAgreeDetails(quotas, convenioId) {
+    const debtDetailsTable2 = $('#conveniosTable2 tbody');
+    debtDetailsTable2.empty();
+
+    quotas.forEach(quota => {
+        const row = `
+            <tr>
+                <td class="hidden-id">${quota.id}</td>
+                <td>${convenioId}</td>
+                <td>${quota.number}</td>
+                <td>$${quota.amount?.toFixed(2) || 0}</td>
+                <td>${quota.interests?.toFixed(2) || 0}%</td>
+                <td>${quota.paidDate}</td>
+                <td>${quota.expirationDate}</td>
+                <td>
+                    <button class="btn btn-success btn-sm pay-quota" data-id="${quota.id}" data-number="${quota.number}">
+                        Pagar
+                    </button>
+                </td>
+            </tr>
+        `;
+        debtDetailsTable2.append(row);
+    });
+
+        $('.pay-quota').on('click', function () {
+        const quotaId = $(this).data('id');
+        const quotaNumber = $(this).data('number');
+        confirmPayment(quotaId, quotaNumber, convenioId);
+    });
+}
+
+async function confirmPayment(quotaId, quotaNumber, convenioId) {
+    const result = await Swal.fire({
+        title: '¿Está seguro?',
+        text: `¿Desea agendar el pago para la cuota ${quotaNumber} del convenio ${convenioId}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, confirmar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BASE_URL}/v1/api/AgreementQuota`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ quotaId })
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al agendar el pago.');
+            }
+
+            Swal.fire('Éxito', 'El pago ha sido agendado correctamente.', 'success');
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    }
+}
+
+async function deleteConvenio(convenioId, convenioNumber) {
+    const token = localStorage.getItem('token');
+    const url = `${BASE_URL}/v1/api/agreement/${convenioId}`;
+
+    try {
+        // Mostrar confirmación con el número de convenio
+        const result = await Swal.fire({
+            title: '¿Está seguro?',
+            text: `Esta acción eliminará el convenio número ${convenioNumber}.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isConfirmed) {
+            // Realiza la solicitud DELETE
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al eliminar el convenio. Verifique el ID e intente nuevamente.');
+            }
+
+            // Mostrar mensaje de éxito
+            Swal.fire('Eliminado', `El convenio número ${convenioNumber} ha sido eliminado correctamente.`, 'success');
+
+            // Opcional: recargar la lista de convenios
+            listarConvenios();
+        }
+    } catch (error) {
+        Swal.fire('Error', error.message, 'error');
+    }
+}
+
+
 
 
 
