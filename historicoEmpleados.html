@@ -26,6 +26,9 @@
                             <th scope="col">Consorcio</th>
                             <th scope="col">Rol</th>
                             <th scope="col">Categoría</th>
+                            <th scope="col">Desde</th>
+                            <th scope="col">Hasta</th>
+                            <th scope="col">Borrar</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -81,9 +84,13 @@
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label for="fromDate" class="form-label">Fecha </label>
-                                <input type="month" id="fromDate" class="form-control" required>
+                                <label for="fromDate" class="form-label">Fecha Desde</label>
+                                <input type="date" id="fromDate" class="form-control" required>
                             </div>
+                            <div class="col-md-6">
+                                <label for="toDate" class="form-label">Fecha Hasta</label>
+                                <input type="date" id="toDate" class="form-control">
+                            </div>                            
                             <div class="col-md-6">
                                 <label for="retirementMultiplier" class="form-label">Multiplicador Retiro Residuos</label>
                                 <input type="number" id="retirementMultiplier" class="form-control" required min="0">
