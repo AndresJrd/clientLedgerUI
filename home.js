@@ -578,6 +578,29 @@ async function fetchDocumentsType() {
 //#############################################################################################################
 
 function formatDate(dateString) {
+    // Validar que la fecha esté en el formato ISO (YYYY-MM-DD)
+    const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!isoDateRegex.test(dateString)) {
+        console.warn(`Fecha inválida: ${dateString}`);
+        return '1900-01-01T00:00:00'; // Fecha predeterminada en caso de error
+    }
+
+    const date = new Date(dateString);
+
+    // Verificar si la fecha es válida
+    if (isNaN(date.getTime())) {
+        console.warn(`Fecha inválida: ${dateString}`);
+        return '1900-01-01T00:00:00';
+    }
+
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0'); // Los meses comienzan desde 0
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}T00:00:00`;
+}
+
+
+/*function formatDate(dateString) {
     const date = new Date(dateString);
     
       // Verificar si la fecha es inválida
@@ -589,7 +612,7 @@ function formatDate(dateString) {
     const mm = String(date.getMonth() + 1).padStart(2, '0'); // Los meses comienzan desde 0
     const dd = String(date.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}T00:00:00`;
-}
+}*/
    
 //#############################################################################################################
 //#############################################################################################################
@@ -1394,7 +1417,10 @@ async function fetchEmployeesByConsortium() {
 //#############################################################################################################
 //#############################################################################################################
 //#############################################################################################################
+let currentHistoryId = null;
+     
 
+let historyModal; // Variable global para el modal
 
 
 function loadEmployeeHistory() {
@@ -1417,6 +1443,12 @@ function populateEmployeeHistoryTable(data) {
     const tableBody = document.getElementById('employeeHistoryTable').getElementsByTagName('tbody')[0];
     tableBody.innerHTML = ''; // Limpiar la tabla antes de agregar nuevos datos
 
+
+  const formatDateDMY = (dateStr) => {
+        const [year, month, day] = dateStr.split('-');
+        return `${day}/${month}/${year}`; // Convertir a DD/MM/YYYY
+    };
+
     data.forEach(item => {
         const row = tableBody.insertRow();
 
@@ -1427,6 +1459,9 @@ function populateEmployeeHistoryTable(data) {
                 <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
             </svg>`;
         searchIconCell.style.textAlign = 'center';
+
+        // Evento para abrir el modal de edición
+        searchIconCell.addEventListener('click', () => openEditModalHistoryEmployee(item));
 
         // Celdas ocultas para los IDs
         const idCell = row.insertCell();
@@ -1460,7 +1495,70 @@ function populateEmployeeHistoryTable(data) {
 
         const salaryCategoryLevelCell = row.insertCell();
         salaryCategoryLevelCell.textContent = item.salaryCategoryLevel;
+
+    
+        
+        const fromCell = row.insertCell();
+        fromCell.textContent = formatDateDMY(item.fromDate);
+
+
+        const toCell = row.insertCell();
+        toCell.textContent = formatDateDMY(item.toDate);
+
+        const deleteButtonCell = row.insertCell();
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Borrar';
+        deleteButton.className = 'btn btn-danger btn-sm';
+        deleteButton.style.cursor = 'pointer';
+        deleteButton.addEventListener('click', () => confirmDelete(item.id, `${item.employee.firstName} ${item.employee.lastName}`));
+        deleteButtonCell.appendChild(deleteButton);
     });
+}
+
+function openEditModalHistoryEmployee(data) {
+    console.log(data);
+      historyModal.show();
+       document.getElementById('historyForm').reset();
+
+
+    currentHistoryId = data.id;
+    
+    const formatDateForInput = (dateStr) => {
+        const [year, month, day] = dateStr.split('-');
+        return `${year}-${month}-${day}`;
+    };
+
+
+    // Setear valores en los campos del modal
+    document.getElementById('fromDate').value = formatDateForInput(data.fromDate);
+    document.getElementById('toDate').value = formatDateForInput(data.toDate);
+    document.getElementById('employeeId').value = data.employee.id;
+    document.getElementById('consortiumId').value = data.consourtium.id;
+    document.getElementById('roleId').value = data.roleId;
+    document.getElementById('salaryCategoryId').value = data.salaryCategoryId;
+    document.getElementById('employeeSeniority').value = data.jobAntique;
+    document.getElementById('retirementMultiplier').value = data.multiplierTrash;
+
+
+    // Cargar modificadores salariales
+    const salaryModifiersSelect = document.getElementById('slaryModifierId');
+    Array.from(salaryModifiersSelect.options).forEach(option => {
+        option.selected = data.salaryModifiers.some(modifier => modifier.id == option.value);
+    });
+
+    // Cargar conceptos
+    conceptsList = data.concepts.map(concept => ({
+        id: concept.id,
+        name: concept.name,
+        amount: concept.amount
+    }));
+    updateConceptsUI();
+    
+
+    // Mostrar el modal
+  
+     document.getElementById('editEmployeeHistory').style.display = 'block';
+    document.querySelector('button[form="historyForm"]').style.display = 'none'; // Oculta el botón de "Guardar"
 }
 
 
@@ -1515,9 +1613,24 @@ function initializeEmployeeHistory() {
     console.log('Planilla view initialized');
 
     const loadHistoryBtn = document.getElementById('loadHistoryBtn');
-    const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+   // const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+
+
+    if (!historyModal) { // Solo inicializa si no está definido
+        const modalElement = document.getElementById('historyModal');
+        if (modalElement) {
+            historyModal = new bootstrap.Modal(modalElement);
+            console.log('historyModal inicializado correctamente');
+        } else {
+            console.error('No se encontró el elemento con ID "historyModal".');
+        }
+    }
 
     loadHistoryBtn.addEventListener('click', () => {
+         document.getElementById('historyForm').reset();
+        // Mostrar el modal
+        historyModal.show();
+    });
         // Cargar selects al abrir el modal con formateadores específicos
         loadSelectData(
             'employeeId',
@@ -1561,8 +1674,23 @@ function initializeEmployeeHistory() {
 
     document.getElementById('historyModal').addEventListener('show.bs.modal', () => {
         document.getElementById('historyForm').reset();
+            // Limpia la lista de conceptos visualmente
+    const conceptsListContainer = document.getElementById('conceptsList');
+    conceptsListContainer.innerHTML = '';
+
+    // Resetea la lista de conceptos en memoria
+    conceptsList = [];
+
+        // Restablecer visibilidad de botones
+    document.getElementById('editEmployeeHistory').style.display = 'none';
+    document.querySelector('button[form="historyForm"]').style.display = 'block';
 
     });
+
+    document.getElementById('editEmployeeHistory').addEventListener('click', function() {
+    submitHistoryForm(); // Llama a la misma función que el botón de guardar
+});
+
 
 
     if(! isSaveEmployeeHistory){
@@ -1572,7 +1700,6 @@ function initializeEmployeeHistory() {
     submitHistoryForm();
 });
     }
-
 
 
       if (!isAddConceptListenerAdded) {
@@ -1600,11 +1727,7 @@ function initializeEmployeeHistory() {
             isListenerAdded = true;  // Marcar que el listener ha sido añadido
         }
 
-        // Mostrar el modal
-        historyModal.show();
-    });
 }
-
 
 
 function addConcept() {
@@ -1615,21 +1738,22 @@ function addConcept() {
     const conceptId = parseInt(conceptSelect.value);
     const conceptAmount = parseFloat(conceptAmountInput.value);
 
-    if (conceptId && conceptAmount && !conceptsList.some(concept => concept.conceptConfigId === conceptId)) {
+    if (conceptId && conceptAmount && !conceptsList.some(concept => concept.id === conceptId)) {
         conceptsList.push({
-            conceptConfigId: conceptId,
+            id: conceptId,
             name: conceptDetails[0],
             amount: conceptAmount
         });
         updateConceptsUI();
         conceptAmountInput.value = ''; // Reset amount input after adding
     } else {
-        alert('Debe seleccionar un concepto y especificar un monto válido, sin duplicados.');
+         Swal.fire('Error', 'Debe seleccionar un concepto y especificar un monto válido, sin duplicados.', 'error');        
     }
+    console.log(conceptsList);
 }
 
 function removeConcept(conceptConfigId) {
-    conceptsList = conceptsList.filter(concept => concept.conceptConfigId !== conceptConfigId);
+    conceptsList = conceptsList.filter(concept => concept.id !== conceptConfigId);
     updateConceptsUI();
 }
 
@@ -1649,7 +1773,7 @@ function updateConceptsUI() {
         // Establecer el tipo del botón para evitar que actúe como submit
         removeBtn.type = 'button';
         removeBtn.onclick = function() {
-            removeConcept(concept.conceptConfigId);
+            removeConcept(concept.id);
         };
 
         listItem.appendChild(removeBtn);
@@ -1664,26 +1788,27 @@ function submitHistoryForm() {
     const consortiumId = document.getElementById('consortiumId').value;
     const roleId = document.getElementById('roleId').value;
     const salaryCategoryId = document.getElementById('salaryCategoryId').value;
-    // Obtiene el valor de fromDate y establece explícitamente el día a '01'
-    const fromDateValue = document.getElementById('fromDate').value; // en formato YYYY-MM
-    const fromDate = new Date(`${fromDateValue}-01`); // Añade '-01' para establecer el día
 
-    // Calcula el último día del mes para toDate
-    const toDate = new Date(fromDate.getFullYear(), fromDate.getMonth() + 1, 0);
+    const fromDateInput = document.getElementById('fromDate').value; // Formato YYYY-MM-DD
+    const toDateInput = document.getElementById('toDate').value;     // Formato YYYY-MM-DD
+
+    const fromDate = `${fromDateInput}T00:00:00`; // Agregar T00:00:00 para el backend
+    const toDate = `${toDateInput}T00:00:00`;     // Agregar T00:00:00 para el backend
 
     const employeeSeniority = document.getElementById('employeeSeniority').value;
     const retirementMultiplier = document.getElementById('retirementMultiplier').value;
     const salaryModifierIds = getSelectedModifiers();
 
     const formData = {
+        id: currentHistoryId,
         employeeId,
         consortiumId,
         roleId,
         salaryCategoryId,
         fromDate,
         toDate,
-        employeeSeniority,
-        retirementMultiplier,
+        jobAntique: employeeSeniority,
+        multiplierTrash: retirementMultiplier,
         concepts: conceptsList,
         salaryModifierIds
     };
@@ -1696,16 +1821,68 @@ function submitHistoryForm() {
         },
         body: JSON.stringify(formData)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (response.ok) {
+            return response.json(); // Continuar con el flujo si la respuesta es exitosa
+        } else {
+            return response.json().then(errorData => {
+                // Mostrar el error con SweetAlert
+                Swal.fire('Error', errorData.result || 'Ocurrió un error al guardar el historial.', 'error');
+                throw new Error(`HTTP error ${response.status}`);
+            });
+        }
+    })
     .then(data => {
-        alert('Historial guardado correctamente!');
-        console.log(data);
+        // Mostrar mensaje de éxito
+        Swal.fire('Historial guardado correctamente!', '', 'success');
+        currentHistoryId = null;
+        loadEmployeeHistory();
+        historyModal.hide();
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error al guardar el historial.');
     });
 }
+
+
+
+function confirmDelete(employeeHistoryId, employeeName) {
+    Swal.fire({
+        title: '¿Está seguro?',
+        text: `Está a punto de borrar el histórico de ${employeeName}. Esta acción no se puede deshacer.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, borrar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            deleteEmployeeHistory(employeeHistoryId);
+        }
+    });
+}
+
+function deleteEmployeeHistory(employeeHistoryId) {
+    fetch(`${BASE_URL}/v1/api/employeeHistory/${employeeHistoryId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Error al borrar el histórico.');
+        }
+        Swal.fire('Eliminado', 'El histórico del empleado ha sido borrado.', 'success');
+        loadEmployeeHistory(); // Recargar la tabla después de borrar
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire('Error', 'No se pudo borrar el histórico del empleado.', 'error');
+    });
+}
+
 
 
 //#############################################################################################################
