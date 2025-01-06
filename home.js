@@ -1056,7 +1056,9 @@ function initializeConsortiumView() {
             address: document.getElementById('address').value,
             zipCode: document.getElementById('zipCode').value,
             cuit: document.getElementById('cuit').value,
-            cityId: document.getElementById('consortiumCityType').value
+            cityId: document.getElementById('consortiumCityType').value,
+            adminName:  document.getElementById('encargado').value,
+            notes: document.getElementById('notasEncargado').value
            
         };
     }
@@ -1187,6 +1189,9 @@ function initializeConsortiumView() {
              document.getElementById('consortiumCityType').value = consortium.cityId || '';
         });
     }
+
+    document.getElementById('encargado').value = consortium.adminName || '';
+    document.getElementById('notasEncargado').value = consortium.notes || '';
 
         consortiumModal.show();
     }
@@ -1989,6 +1994,11 @@ function initializePlanillaBase() {
 
 }
 
+function formatDateER(dateString) {
+    const [year, month, day] = dateString.split('-'); // Dividir el formato ISO (YYYY-MM-DD)
+    return `${day}/${month}/${year}`; // Devolver el formato DD/MM/YYYY
+}
+
 async function loadPlanillaBase() {
     const tableBody = document.querySelector('#planillaBaseTable tbody');
     const token = localStorage.getItem('token');
@@ -2016,8 +2026,8 @@ async function loadPlanillaBase() {
 
         // Rellena la tabla con las planillas
         planillas.forEach(planilla => {
-            const fromDate = new Date(planilla.fromDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const toDate = new Date(planilla.toDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const fromDate = formatDateER(planilla.fromDate); // Utilizar formatDate
+            const toDate = formatDateER(planilla.toDate); // Utilizar formatDate
 
             const createdAt = planilla.createdAt ? 
                 `${new Date(planilla.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}, ` +
@@ -2066,20 +2076,6 @@ async function loadPlanillaBase() {
             },
         });
 
-    document.getElementById('planillaBaseTable').addEventListener('click', (event) => {
-    const target = event.target.closest('svg');
-    if (target) {
-        const row = target.closest('tr');
-        showEditModalPlanillaBase(row);
-    }
-});
-
-
-const editButton = document.getElementById('editPlanillaMButton');
-if (editButton) {
-    editButton.removeEventListener('click', editPlanillaBase); // Remover previos para evitar duplicados
-    editButton.addEventListener('click', editPlanillaBase); // Asegúrate que 'editPlanillaBase' es el nombre correcto
-}
     } catch (error) {
         console.error('Error al cargar las planillas:', error);
         Swal.fire('Error', 'No se pudieron cargar las planillas.', 'error');
@@ -2639,17 +2635,21 @@ async function loadSelectDataRoleCategory(selectId, url, placeholder, displayFie
     }
 }
 
+function formatDatePR(dateString) {
+    const [year, month, day] = dateString.split('-'); // Dividir el formato ISO (YYYY-MM-DD)
+    return `${day}/${month}/${year}`; // Devolver el formato DD/MM/YYYY
+}
+
 async function fetchPlanillaRoleCategoryDetails() {
     const planillaSelect = document.getElementById('planillaRoleSelect');
     const planillaBaseTable = document.getElementById('salaryRoleTable').querySelector('tbody');
     const token = localStorage.getItem('token');
     const [fromDate, toDate] = planillaSelect.value.split(',');
 
-
-            // Reiniciar DataTable
-        if ($.fn.DataTable.isDataTable('#salaryRoleTable')) {
-            $('#salaryRoleTable').DataTable().clear().destroy();
-        }
+    // Reiniciar DataTable
+    if ($.fn.DataTable.isDataTable('#salaryRoleTable')) {
+        $('#salaryRoleTable').DataTable().clear().destroy();
+    }
 
     try {
         const response = await fetch(`${BASE_URL}/v1/api/period/search?fromDate=${fromDate}&toDate=${toDate}`, {
@@ -2672,18 +2672,16 @@ async function fetchPlanillaRoleCategoryDetails() {
         planillaDetails.forEach(planilla => {
             if (Array.isArray(planilla.salaryModifierPeriodRelationships)) {
                 planilla.roleCategoryRelationships.forEach(modifier => {
+                    const fromDateFormatted = formatDatePR(planilla.fromDate); // Usar formatDate
+                    const toDateFormatted = formatDatePR(planilla.toDate); // Usar formatDate
 
-            const fromDate = new Date(planilla.fromDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const toDate = new Date(planilla.toDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const createdAtFormatted = planilla.createdAt
+                        ? `${formatDate(planilla.createdAt.split('T')[0])}, ${planilla.createdAt.split('T')[1].split('.')[0]}`
+                        : '-';
 
-            const createdAt = planilla.createdAt ? 
-                `${new Date(planilla.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}, ` +
-                new Date(planilla.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : '-';
-
-            const updatedAt = planilla.updatedAt ? 
-                `${new Date(planilla.updatedAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}, ` +
-                new Date(planilla.updatedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : '-';
-
+                    const updatedAtFormatted = planilla.updatedAt
+                        ? `${formatDate(planilla.updatedAt.split('T')[0])}, ${planilla.updatedAt.split('T')[1].split('.')[0]}`
+                        : '-';
 
                     const row = document.createElement('tr');
                     row.innerHTML = `
@@ -2693,14 +2691,14 @@ async function fetchPlanillaRoleCategoryDetails() {
                             </svg>
                         </td>
                         <td style="display: none;">${modifier.salaryModifierId}</td>
-                        <td>${fromDate || '-'}</td>
-                        <td>${toDate || '-'}</td>
+                        <td>${fromDateFormatted}</td>
+                        <td>${toDateFormatted}</td>
                         <td>$${parseFloat(modifier.amount).toFixed(2)}</td>
                         <td>${modifier.roleName || '-'}</td>
                         <td>${modifier.categoryLevel || '-'}</td>
-                        <td>${createdAt ? new Date(modifier.createdAt).toLocaleString() : '-'}</td>
+                        <td>${createdAtFormatted}</td>
                         <td>${modifier.createdBy || '-'}</td>
-                        <td>${updatedAt ? new Date(modifier.updatedAt).toLocaleString() : '-'}</td>
+                        <td>${updatedAtFormatted}</td>
                         <td>${modifier.roleId || '-'}</td>
                     `;
                     planillaBaseTable.appendChild(row);
@@ -2708,7 +2706,7 @@ async function fetchPlanillaRoleCategoryDetails() {
             }
         });
 
-
+        // Reinicia DataTable con los datos nuevos
         $('#salaryRoleTable').DataTable({
             language: {
                 search: "Buscar:",
@@ -2727,13 +2725,13 @@ async function fetchPlanillaRoleCategoryDetails() {
             }
         });
 
-            document.getElementById('salaryRoleTable').addEventListener('click', (event) => {
-        const target = event.target.closest('svg');
-        if (target) {
-            const row = target.closest('tr');
-            openEditModalRolPlanilla(row);
-        }
-            });
+        document.getElementById('salaryRoleTable').addEventListener('click', (event) => {
+            const target = event.target.closest('svg');
+            if (target) {
+                const row = target.closest('tr');
+                openEditModalRolPlanilla(row);
+            }
+        });
     } catch (error) {
         console.error('Error al obtener los detalles de la planilla:', error);
         Swal.fire('Error', error.message, 'error');
