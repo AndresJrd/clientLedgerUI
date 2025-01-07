@@ -3013,16 +3013,19 @@ async function calculateDebt() {
         );
 
         if (!response.ok) {
-            throw new Error('Error al calcular la deuda.');
+            // Intentar extraer el mensaje del error devuelto por el backend
+            const errorResponse = await response.json();
+            throw new Error(errorResponse.result || 'Error desconocido del servidor.');
         }
 
         const debtData = await response.json();
         displayDebtData(debtData);
     } catch (error) {
-        console.error('Error al calcular la deuda:', error);
+        console.error('Error al calcular la deuda:', error.message);
         Swal.fire('Error', error.message, 'error');
     }
 }
+
 
 function displayDebtData(debtData) {
     const tableBody = document.querySelector('#consortiumDebtTable tbody');
@@ -3718,7 +3721,7 @@ async function loadConsortiumsVerDeudas() {
                     <td>${debt.interest}</td>
                     <td class="d-none">${JSON.stringify(debt.employeeDebts)}</td>
                     <td>
-                         ${!['Cancelado', 'Convenio', 'Perdonada'].includes(debt.status) ? 
+                         ${['Pago Pendiente', 'Previsualizacion'].includes(debt.status) ? 
                                 `<button class="btn btn-warning btn-create-agreement" 
                                      data-id="${debt.id}" 
                                     data-capital="${debt.capital}" 
@@ -3955,31 +3958,33 @@ function renderAgreeDetails(quotas, convenioId) {
     debtDetailsTable2.empty();
 
     quotas.forEach(quota => {
+        const payButton = !quota.paidDate
+            ? `<button class="btn btn-success btn-sm pay-quota" data-id="${quota.id}" data-number="${quota.number}">
+                   Pagar
+               </button>`
+            : ''; // No mostrar el botón si tiene fecha de pago
+
         const row = `
             <tr>
                 <td class="hidden-id">${quota.id}</td>
                 <td>${convenioId}</td>
                 <td>${quota.number}</td>
                 <td>$${quota.amount?.toFixed(2) || 0}</td>
-                <td>${quota.interests?.toFixed(2) || 0}%</td>
-                <td>${quota.paidDate}</td>
-                <td>${quota.expirationDate}</td>
-                <td>
-                    <button class="btn btn-success btn-sm pay-quota" data-id="${quota.id}" data-number="${quota.number}">
-                        Pagar
-                    </button>
-                </td>
+                <td>${quota.paidDate || ''}</td>
+                <td>${quota.expirationDate || ''}</td>
+                <td>${payButton}</td>
             </tr>
         `;
         debtDetailsTable2.append(row);
     });
 
-        $('.pay-quota').on('click', function () {
+    $('.pay-quota').on('click', function () {
         const quotaId = $(this).data('id');
         const quotaNumber = $(this).data('number');
         confirmPayment(quotaId, quotaNumber, convenioId);
     });
 }
+
 
 async function confirmPayment(quotaId, quotaNumber, convenioId) {
     const result = await Swal.fire({
