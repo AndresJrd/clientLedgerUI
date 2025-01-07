@@ -1508,7 +1508,7 @@ function populateEmployeeHistoryTable(data) {
 
 
         const toCell = row.insertCell();
-        toCell.textContent = formatDateDMY(item.toDate);
+        toCell.textContent = item.toDate ? formatDateDMY(item.toDate) : '-';
 
         const deleteButtonCell = row.insertCell();
         const deleteButton = document.createElement('button');
@@ -1529,6 +1529,7 @@ function openEditModalHistoryEmployee(data) {
     currentHistoryId = data.id;
     
     const formatDateForInput = (dateStr) => {
+        if (!dateStr || dateStr === "-") return ""; // Validar si es nulo o "-"
         const [year, month, day] = dateStr.split('-');
         return `${year}-${month}-${day}`;
     };
@@ -1798,12 +1799,13 @@ function submitHistoryForm() {
     const toDateInput = document.getElementById('toDate').value;     // Formato YYYY-MM-DD
 
     const fromDate = `${fromDateInput}T00:00:00`; // Agregar T00:00:00 para el backend
-    const toDate = `${toDateInput}T00:00:00`;     // Agregar T00:00:00 para el backend
+    const toDate = toDateInput ? `${toDateInput}T00:00:00` : null;   // Validar toDateInput
 
     const employeeSeniority = document.getElementById('employeeSeniority').value;
     const retirementMultiplier = document.getElementById('retirementMultiplier').value;
     const salaryModifierIds = getSelectedModifiers();
 
+    // Crear formData dinámicamente
     const formData = {
         id: currentHistoryId,
         employeeId,
@@ -1811,12 +1813,16 @@ function submitHistoryForm() {
         roleId,
         salaryCategoryId,
         fromDate,
-        toDate,
         jobAntique: employeeSeniority,
         multiplierTrash: retirementMultiplier,
         concepts: conceptsList,
         salaryModifierIds
     };
+
+    // Agregar toDate solo si tiene un valor válido
+    if (toDate) {
+        formData.toDate = toDate;
+    }
 
     fetch(`${BASE_URL}/v1/api/employeeHistory`, {
         method: 'POST',
@@ -1848,6 +1854,7 @@ function submitHistoryForm() {
         console.error('Error:', error);
     });
 }
+
 
 
 
@@ -2539,6 +2546,7 @@ async function updateModifier() {
 //#############################################################################################################
 //#############################################################################################################
 //#############################################################################################################
+ let cargarRegistroRolModal ;
 async function loadPlanillaRolBase() {
     const planillaSelect = document.getElementById('planillaRoleSelect');
     const token = localStorage.getItem('token');
@@ -2571,9 +2579,14 @@ async function loadPlanillaRolBase() {
         const form = document.getElementById('roleCategoryForm');
         form.addEventListener('submit', async (event) => {
         event.preventDefault(); // Prevenir la recarga de la página
+
+       
         await saveRoleCategory(); // Llamar a la función para guardar los datos
     });
          document.getElementById('editRoleCategoryButton').addEventListener('click', updatePlanillaRol);
+        cargarRegistroRolModal = new bootstrap.Modal(document.getElementById('cargarRegistroRolModal'));
+        document.getElementById('newRoleCategoryButton').addEventListener('click', openNewRoleCategoryModal);
+
 
         loadRoleAndCategorySelects();
     } catch (error) {
@@ -2634,6 +2647,7 @@ async function loadSelectDataRoleCategory(selectId, url, placeholder, displayFie
         Swal.fire('Error', `No se pudieron cargar los datos de ${placeholder.toLowerCase()}.`, 'error');
     }
 }
+
 
 function formatDatePR(dateString) {
     const [year, month, day] = dateString.split('-'); // Dividir el formato ISO (YYYY-MM-DD)
@@ -2753,7 +2767,6 @@ function openEditModalRolPlanilla(row) {
     document.getElementById('categoryCategoryInput').value = category;
     document.getElementById('amountCategoryInput').value = amount;
 
-
     // Guardar el ID del modificador en un atributo de datos para usarlo en el PATCH
     document.getElementById('editRoleCategoryButton').setAttribute('data-modifier-id', salaryModifierId);
 
@@ -2761,9 +2774,8 @@ function openEditModalRolPlanilla(row) {
     document.getElementById('saveRoleCategoryPlanilla').style.display = 'none';
     document.getElementById('editRoleCategoryButton').style.display = 'block';
 
-    // Abrir el modal
-    const modal = new bootstrap.Modal(document.getElementById('cargarRegistroRolModal'));
-    modal.show();
+    // Abre el modal utilizando la instancia única
+    cargarRegistroRolModal.show();
 }
 
 async function saveRoleCategory() {
@@ -2796,10 +2808,10 @@ async function saveRoleCategory() {
 
         Swal.fire('Éxito', 'Registro guardado correctamente.', 'success');
 
-        const modal = bootstrap.Modal.getInstance(document.getElementById('cargarRegistroRolModal'));
-        modal.hide();
+        // Limpia el formulario y cierra el modal usando la instancia única
         form.reset();
         form.classList.remove('was-validated');
+        cargarRegistroRolModal.hide();
 
         // Recargar la tabla después de guardar
         fetchPlanillaRoleCategoryDetails();
@@ -2810,8 +2822,11 @@ async function saveRoleCategory() {
 }
 
 
+
 async function updatePlanillaRol(event) {
     event.preventDefault();
+
+    const form = document.getElementById('roleCategoryForm');
 
     const roleId = document.getElementById('roleNameCategorySelect').value;
     const categoryId = document.getElementById('categoryCategoryInput').value;
@@ -2835,22 +2850,38 @@ async function updatePlanillaRol(event) {
             throw new Error('Failed to update role category');
         }
 
-        // Notificar al usuario que la operación fue exitosa
         Swal.fire('Actualizado', 'El registro se actualizó correctamente.', 'success');
 
-        document.getElementById('saveRoleCategoryPlanilla').style.display = 'block';
-        document.getElementById('editRoleCategoryButton').style.display = 'none';
 
-        // Opcional: Recargar los datos en la tabla o cerrar el modal
-        $('#cargarRegistroRolModal').modal('hide');
+        // Limpia y cierra el modal usando la instancia única
+        cargarRegistroRolModal.hide();
+        form.reset();
+        form.classList.remove('was-validated');
 
+        // Recargar los datos en la tabla
         fetchPlanillaRoleCategoryDetails();
-        // Opcional: Recargar datos relacionados si es necesario
     } catch (error) {
         console.error('Error:', error);
         Swal.fire('Error', 'No se pudo actualizar el registro.', 'error');
     }
 }
+
+function openNewRoleCategoryModal() {
+    const form = document.getElementById('roleCategoryForm');
+
+    // Limpia el formulario
+    form.reset();
+    form.classList.remove('was-validated');
+
+    // Configura los botones
+    document.getElementById('saveRoleCategoryPlanilla').style.display = 'block'; // Muestra "Guardar"
+    document.getElementById('editRoleCategoryButton').style.display = 'none'; // Oculta "Editar"
+
+    // Abre el modal
+    cargarRegistroRolModal.show();
+}
+
+
 
 
 //#############################################################################################################
