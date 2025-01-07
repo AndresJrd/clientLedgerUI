@@ -3199,9 +3199,13 @@ async function loadInterests() {
         const interests = await response.json();
         const tableBody = document.querySelector('#interestTable tbody');
         tableBody.innerHTML = interests.map(interest => {
+
             // Cambio de formato de fecha
-            const fromDate = new Date(interest.fromDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const toDate = new Date(interest.toDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            // const fromDate = new Date(interest.fromDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            // const toDate = new Date(interest.toDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const fromDate = formatDateER(interest.fromDate); // Utilizar formatDate
+            const toDate = formatDateER(interest.toDate); // Utilizar formatDate
+
 
             return `
                 <tr>
