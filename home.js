@@ -2320,6 +2320,11 @@ async function loadModifiersSelectModal() {
     }
 }
 
+function formatDateMS(dateString) {
+    const [year, month, day] = dateString.split('-'); // Dividir el formato ISO (YYYY-MM-DD)
+    return `${day}/${month}/${year}`; // Devolver el formato DD/MM/YYYY
+}
+
 async function fetchPlanillaDetails() {
     const planillaSelect = document.getElementById('planillaMofidierSelect');
     const planillaBaseTable = document.getElementById('salaryPlanillaModifiersTable').querySelector('tbody');
@@ -2353,8 +2358,9 @@ async function fetchPlanillaDetails() {
         planillaDetails.forEach(planilla => {
             if (Array.isArray(planilla.salaryModifierPeriodRelationships)) {
                 planilla.salaryModifierPeriodRelationships.forEach(modifier => {
-                                const fromDate = new Date(planilla.fromDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const toDate = new Date(planilla.toDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+            const fromDate = formatDateMS(planilla.fromDate);
+            const toDate = formatDateMS(planilla.toDate);
 
             const createdAt = planilla.createdAt ? 
                 `${new Date(planilla.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}, ` +
@@ -3062,8 +3068,9 @@ function displayDebtData(debtData) {
     const tableBody = document.querySelector('#consortiumDebtTable tbody');
     const totalCapital = document.getElementById('totalCapital');
     const totalInterest = document.getElementById('totalInterest');
+    const totalIDebt = document.getElementById('totalIDebt');
 
-        if ($.fn.DataTable.isDataTable('#consortiumDebtTable')) {
+    if ($.fn.DataTable.isDataTable('#consortiumDebtTable')) {
         $('#consortiumDebtTable').DataTable().clear().destroy();
     }
 
@@ -3071,6 +3078,13 @@ function displayDebtData(debtData) {
     let totalInterestValue = 0;
 
     tableBody.innerHTML = '';
+
+    const currencyFormatter = new Intl.NumberFormat('es-AR', {
+        style: 'currency',
+        currency: 'ARS',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
 
     debtData.employeeDebts.forEach(employee => {
         employee.debts.forEach(debt => {
@@ -3080,8 +3094,8 @@ function displayDebtData(debtData) {
                 <td>${employee.cuil}</td>
                 <td>${debt.dateFrom}</td>
                 <td>${debt.dateTo}</td>
-                <td>${debt.capital.toFixed(2)}</td>
-                <td>${debt.interest.toFixed(2)}</td>
+                <td>${currencyFormatter.format(debt.capital)}</td>
+                <td>${currencyFormatter.format(debt.interest)}</td>
             `;
             tableBody.appendChild(row);
             totalCapitalValue += parseFloat(debt.capital);
@@ -3089,10 +3103,11 @@ function displayDebtData(debtData) {
         });
     });
 
-    totalCapital.textContent = totalCapitalValue.toFixed(2);
-    totalInterest.textContent = totalInterestValue.toFixed(2);
+    totalCapital.textContent = currencyFormatter.format(totalCapitalValue);
+    totalInterest.textContent = currencyFormatter.format(totalInterestValue);
 
-
+    const totalDebtValue = totalCapitalValue + totalInterestValue;
+    totalIDebt.textContent = currencyFormatter.format(totalDebtValue);
 
     $('#consortiumDebtTable').DataTable({
         language: {
@@ -3112,7 +3127,7 @@ function displayDebtData(debtData) {
         }
     });
 
-     document.getElementById('generateDebtButton').style.display = 'block';
+    document.getElementById('generateDebtButton').style.display = 'block';
 }
 
 
