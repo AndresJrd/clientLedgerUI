@@ -2975,7 +2975,8 @@ function clickGenerateDebt(){
         html: `¿Está seguro de generar una deuda para el consorcio <b>${consortiumName}</b>? <br> entre las fechas:<br>` +
               `Desde: <b>${formatDateDDMMYYYY(fromDateInput)}</b><br>` +
               `Hasta: <b>${formatDateDDMMYYYY(toDateInput)}</b><br>` +
-              `Con fecha de pago: <b>${formatDateDDMMYYYY(dueDateInput)}</b>`,
+              `Con fecha de pago: <b>${formatDateDDMMYYYY(dueDateInput)}</b><br>` +
+              `Total: <b>${document.getElementById('totalDebts').textContent}</b>`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
@@ -3042,6 +3043,7 @@ async function calculateDebt() {
     }
 
     try {
+        document.getElementById('generateDebtButton').style.display = 'none';
         const response = await fetch(
             `${BASE_URL}/v1/api/debt/calculate?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}&dueDate=${dueDate}`,
             {
@@ -3083,7 +3085,7 @@ async function calculateDebt() {
 
      clearTables();
 
-
+     document.getElementById('generateDebtButton').style.display = 'block';
 
         const currencyFormatter = new Intl.NumberFormat('es-AR', {
         style: 'currency',
@@ -3109,7 +3111,6 @@ async function calculateDebt() {
    document.getElementById('totalCapital').textContent = currencyFormatter.format(totalCapital);
    document.getElementById('totalInterest').textContent = currencyFormatter.format(totalInterest);
    document.getElementById('totalDebts').textContent = currencyFormatter.format(totalInterest + totalCapital);
-
 
 
         $('#mainDebtTable').DataTable({
@@ -3194,6 +3195,7 @@ employeeDetailsTableBody.querySelectorAll('.employee-detail').forEach(button => 
    document.getElementById('totalCapital').textContent = "-";
    document.getElementById('totalInterest').textContent = "-";
    document.getElementById('totalDebts').textContent = "-";
+   document.getElementById('generateDebtButton').style.display = 'none';
    
 }
 
