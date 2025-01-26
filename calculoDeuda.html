@@ -49,40 +49,97 @@
             </div>
         </div>
 
-        <!-- Resumen de deuda -->
+  <div class="text-center my-4">
+    <h3 class="fw-bold">Total adeudado:</h3>
+    <p class="mb-1">
+        <span class="fw-bold">Capital:</span> 
+        <span id="totalCapital" class="text-danger  fs-4"> - </span>
+    </p>
+    <p>
+        <span class="fw-bold">Intereses:</span> 
+        <span id="totalInterest" class="text-danger fs-4"> - </span>
+    </p>
+    <p>
+        <span class="fw-bold">Total:</span> 
+        <span id="totalDebts" class="text-danger fs-4"> - </span>
+    </p>
+  </div>
+
+    <div class="container mt-5">
+
+        <!-- Tabla principal de deuda por mes -->
         <div class="card mb-4">
-            <div class="card-header bg-info text-white">
+            <div class="card-header bg-primary text-white">
                 Resumen de Deuda
             </div>
             <div class="card-body">
-                <h5>Total Capital Adeudado: <span id="totalCapital" class="text-danger">0.00</span></h5>
-                <h5>Total Intereses: <span id="totalInterest" class="text-warning">0.00</span></h5>
-            </div>
-        </div>
-
-        <!-- Tabla de detalles -->
-        <div class="card">
-            <div class="card-header bg-secondary text-white">
-                Detalles de Deuda por Empleado
-            </div>
-            <div class="card-body">
-                <table class="table table-striped" id="consortiumDebtTable">
+                <table class="table table-striped" id="mainDebtTable">
                     <thead>
                         <tr>
-                            <th>Nombre</th>
-                            <th>CUIL</th>
-                            <th>Desde</th>
-                            <th>Hasta</th>
+                            <th>Detalle</th>
+                            <th>Mes</th>
                             <th>Capital</th>
-                            <th>Interés</th>
+                            <th>Intereses</th>
+                            <th>Total</th>
+                            <th class="d-none">Detalles</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Los datos calculados se llenarán aquí -->
+                        <!-- Datos se llenarán dinámicamente -->
                     </tbody>
                 </table>
             </div>
         </div>
+
+        <!-- Tabla secundaria de detalles de empleados -->
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                Detalles de Empleados
+            </div>
+            <div class="card-body">
+                <table class="table table-striped" id="employeeDetailsTable">
+                    <thead>
+                        <tr>
+                            <th>Detalle</th>
+                            <th>Nombre</th>
+                            <th>Apellido</th>
+                            <th>CUIL</th>
+                            <th>Salario básico</th>
+                            <th>Salario bruto</th>
+                            <th>Capital</th>
+                            <th>Intereses</th>
+                            <th>Total</th>
+                            <th class="d-none">Detalles</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Datos se llenarán dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+
+
+                    <!-- Tabla secundaria de detalles de empleados -->
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                Detalles Conceptos
+            </div>
+            <div class="card-body">
+                <table class="table table-striped" id="employeeConceptsDetailsTable">
+                    <thead>
+                        <tr>
+                            <th>Concepto</th>
+                            <th>Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Datos se llenarán dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        </div>
+    </div>
     </div>
 
     <!-- Decision Modal -->

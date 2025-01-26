@@ -1522,10 +1522,8 @@ function populateEmployeeHistoryTable(data) {
 
 function openEditModalHistoryEmployee(data) {
     console.log(data);
-      historyModal.show();
-       document.getElementById('historyForm').reset();
-
-
+    historyModal.show();
+    document.getElementById('historyForm').reset();
     currentHistoryId = data.id;
     
     const formatDateForInput = (dateStr) => {
@@ -1538,11 +1536,11 @@ function openEditModalHistoryEmployee(data) {
     // Setear valores en los campos del modal
     document.getElementById('fromDate').value = formatDateForInput(data.fromDate);
     document.getElementById('toDate').value = formatDateForInput(data.toDate);
-    document.getElementById('employeeId').value = data.employee.id;
+    document.getElementById('employeeSelectId').value = data.employee.id;
     document.getElementById('consortiumId').value = data.consourtium.id;
     document.getElementById('roleId').value = data.roleId;
     document.getElementById('salaryCategoryId').value = data.salaryCategoryId;
-    document.getElementById('employeeSeniority').value = data.jobAntique;
+    document.getElementById('employeeSeniority').value = formatDateForInput(data.startDate);
     document.getElementById('retirementMultiplier').value = data.multiplierTrash;
 
 
@@ -1639,7 +1637,7 @@ function initializeEmployeeHistory() {
     });
         // Cargar selects al abrir el modal con formateadores específicos
         loadSelectData(
-            'employeeId',
+            'employeeSelectId',
             `${BASE_URL}/v1/api/employee/all`,
             'Seleccione un empleado',
             item => `${item.firstName}  ${item.lastName} - ${item.cuil}`
@@ -1790,7 +1788,7 @@ function updateConceptsUI() {
 
 
 function submitHistoryForm() {
-    const employeeId = document.getElementById('employeeId').value;
+    const employeeId = document.getElementById('employeeSelectId').value;
     const consortiumId = document.getElementById('consortiumId').value;
     const roleId = document.getElementById('roleId').value;
     const salaryCategoryId = document.getElementById('salaryCategoryId').value;
@@ -1801,9 +1799,12 @@ function submitHistoryForm() {
     const fromDate = `${fromDateInput}T00:00:00`; // Agregar T00:00:00 para el backend
     const toDate = toDateInput ? `${toDateInput}T00:00:00` : null;   // Validar toDateInput
 
-    const employeeSeniority = document.getElementById('employeeSeniority').value;
+    const employeeSeniorityInput = document.getElementById('employeeSeniority').value;
+    const employeeSeniority = `${employeeSeniorityInput}T00:00:00`; // Agregar T00:00:00 para el backend
+
     const retirementMultiplier = document.getElementById('retirementMultiplier').value;
     const salaryModifierIds = getSelectedModifiers();
+    
 
     // Crear formData dinámicamente
     const formData = {
@@ -1813,7 +1814,7 @@ function submitHistoryForm() {
         roleId,
         salaryCategoryId,
         fromDate,
-        jobAntique: employeeSeniority,
+        startDate: employeeSeniority,
         multiplierTrash: retirementMultiplier,
         concepts: conceptsList,
         salaryModifierIds
@@ -1847,6 +1848,7 @@ function submitHistoryForm() {
         // Mostrar mensaje de éxito
         Swal.fire('Historial guardado correctamente!', '', 'success');
         currentHistoryId = null;
+        conceptsList = [];
         loadEmployeeHistory();
         historyModal.hide();
     })
@@ -2320,6 +2322,11 @@ async function loadModifiersSelectModal() {
     }
 }
 
+function formatDateMS(dateString) {
+    const [year, month, day] = dateString.split('-'); // Dividir el formato ISO (YYYY-MM-DD)
+    return `${day}/${month}/${year}`; // Devolver el formato DD/MM/YYYY
+}
+
 async function fetchPlanillaDetails() {
     const planillaSelect = document.getElementById('planillaMofidierSelect');
     const planillaBaseTable = document.getElementById('salaryPlanillaModifiersTable').querySelector('tbody');
@@ -2353,8 +2360,9 @@ async function fetchPlanillaDetails() {
         planillaDetails.forEach(planilla => {
             if (Array.isArray(planilla.salaryModifierPeriodRelationships)) {
                 planilla.salaryModifierPeriodRelationships.forEach(modifier => {
-                                const fromDate = new Date(planilla.fromDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const toDate = new Date(planilla.toDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+            const fromDate = formatDateMS(planilla.fromDate);
+            const toDate = formatDateMS(planilla.toDate);
 
             const createdAt = planilla.createdAt ? 
                 `${new Date(planilla.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}, ` +
@@ -2966,7 +2974,8 @@ function clickGenerateDebt(){
         html: `¿Está seguro de generar una deuda para el consorcio <b>${consortiumName}</b>? <br> entre las fechas:<br>` +
               `Desde: <b>${formatDateDDMMYYYY(fromDateInput)}</b><br>` +
               `Hasta: <b>${formatDateDDMMYYYY(toDateInput)}</b><br>` +
-              `Con fecha de pago: <b>${formatDateDDMMYYYY(dueDateInput)}</b>`,
+              `Con fecha de pago: <b>${formatDateDDMMYYYY(dueDateInput)}</b><br>` +
+              `Total: <b>${document.getElementById('totalDebts').textContent}</b>`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
@@ -3008,6 +3017,7 @@ function postGenerateDebt(consortiumId, fromDate, toDate, dueDate) {
             'La deuda ha sido generada exitosamente.',
             'success'
         );
+           document.getElementById('generateDebtButton').style.display = 'none';
     })
     .catch(error => {
         Swal.fire(
@@ -3033,6 +3043,7 @@ async function calculateDebt() {
     }
 
     try {
+        document.getElementById('generateDebtButton').style.display = 'none';
         const response = await fetch(
             `${BASE_URL}/v1/api/debt/calculate?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}&dueDate=${dueDate}`,
             {
@@ -3050,7 +3061,7 @@ async function calculateDebt() {
         }
 
         const debtData = await response.json();
-        displayDebtData(debtData);
+        populateMainTable(debtData);
     } catch (error) {
         console.error('Error al calcular la deuda:', error.message);
         Swal.fire('Error', error.message, 'error');
@@ -3058,61 +3069,134 @@ async function calculateDebt() {
 }
 
 
-function displayDebtData(debtData) {
-    const tableBody = document.querySelector('#consortiumDebtTable tbody');
-    const totalCapital = document.getElementById('totalCapital');
-    const totalInterest = document.getElementById('totalInterest');
+    function populateMainTable(data) {
+    const mainTableBody = document.querySelector('#mainDebtTable tbody');
+    const employeeDetailsTableBody = document.querySelector('#employeeDetailsTable tbody');
 
-        if ($.fn.DataTable.isDataTable('#consortiumDebtTable')) {
-        $('#consortiumDebtTable').DataTable().clear().destroy();
+    // Verificar y destruir DataTable si ya está inicializado
+    if ($.fn.DataTable.isDataTable('#mainDebtTable')) {
+        $('#mainDebtTable').DataTable().clear().destroy();
     }
 
-    let totalCapitalValue = 0;
-    let totalInterestValue = 0;
-
-    tableBody.innerHTML = '';
-
-    debtData.employeeDebts.forEach(employee => {
-        employee.debts.forEach(debt => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${employee.firstName} ${employee.lastName}</td>
-                <td>${employee.cuil}</td>
-                <td>${debt.dateFrom}</td>
-                <td>${debt.dateTo}</td>
-                <td>${debt.capital.toFixed(2)}</td>
-                <td>${debt.interest.toFixed(2)}</td>
-            `;
-            tableBody.appendChild(row);
-            totalCapitalValue += parseFloat(debt.capital);
-            totalInterestValue += parseFloat(debt.interest);
-        });
-    });
-
-    totalCapital.textContent = totalCapitalValue.toFixed(2);
-    totalInterest.textContent = totalInterestValue.toFixed(2);
 
 
+    // Limpiar el contenido del cuerpo de la tabla
+    mainTableBody.innerHTML = '';
 
-    $('#consortiumDebtTable').DataTable({
-        language: {
-            search: 'Buscar:',
-            lengthMenu: 'Mostrar _MENU_ registros',
-            info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
-            infoEmpty: 'Mostrando 0 a 0 de 0 registros',
-            loadingRecords: 'Cargando...',
-            zeroRecords: 'No se encontraron resultados',
-            emptyTable: 'No hay datos disponibles',
-            paginate: {
-                first: 'Primero',
-                previous: 'Anterior',
-                next: 'Siguiente',
-                last: 'Último'
-            }
-        }
-    });
+     clearTables();
 
      document.getElementById('generateDebtButton').style.display = 'block';
+
+        const currencyFormatter = new Intl.NumberFormat('es-AR', {
+        style: 'currency',
+        currency: 'ARS',
+        minimumFractionDigits: 2,
+    });
+        data.forEach((item, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><button class="btn btn-sm btn-info view-details" data-index="${index}">🔍</button></td>
+                <td>${formatDateMS(item.from)}</td>
+                <td>${currencyFormatter.format(item.capital)}</td>
+                <td>${currencyFormatter.format(item.interest)}</td>
+                 <td>${currencyFormatter.format(item.interest + item.capital)}</td>
+                <td class="d-none">${JSON.stringify(item.employeeDebts)}</td>
+            `;
+            mainTableBody.appendChild(row);
+        });
+
+   const totalCapital = data.reduce((acc, item) => acc + item.capital, 0);
+   const totalInterest = data.reduce((acc, item) => acc + item.interest, 0);
+
+   document.getElementById('totalCapital').textContent = currencyFormatter.format(totalCapital);
+   document.getElementById('totalInterest').textContent = currencyFormatter.format(totalInterest);
+   document.getElementById('totalDebts').textContent = currencyFormatter.format(totalInterest + totalCapital);
+
+
+        $('#mainDebtTable').DataTable({
+            language: {
+                search: 'Buscar:',
+                lengthMenu: 'Mostrar _MENU_ registros',
+                info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+                zeroRecords: 'No se encontraron resultados',
+                emptyTable: 'No hay datos disponibles',
+                paginate: {
+                    first: 'Primero',
+                    previous: 'Anterior',
+                    next: 'Siguiente',
+                    last: 'Último',
+                },
+            },
+        });
+
+    function displayEmployeeDetails(employeeDebts) {
+        employeeDetailsTableBody.innerHTML = '';
+        employeeDebts.forEach((employee, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><button class="btn btn-sm btn-warning employee-detail" data-index="${index}">🔍</button></td>
+                <td>${employee.firstName}</td>
+                <td>${employee.lastName}</td>
+                <td>${employee.cuil}</td>
+                <td>${currencyFormatter.format(employee.debts[0].details.base_salary)}</td>
+                <td>${currencyFormatter.format(employee.debts[0].details.gross_salary)}</td>
+                <td>${currencyFormatter.format(employee.debts[0].capital)}</td>
+                <td>${currencyFormatter.format(employee.debts[0].interest)}</td>
+                <td>${currencyFormatter.format(employee.debts[0].interest + employee.debts[0].capital)}</td>
+                <td class="d-none">${JSON.stringify(employee.debts[0].details.applied_concepts)}</td>
+            `;
+            employeeDetailsTableBody.appendChild(row);
+        });
+
+        // Agregar evento a los botones de detalles
+employeeDetailsTableBody.querySelectorAll('.employee-detail').forEach(button => {
+    button.addEventListener('click', (e) => {
+        const index = e.target.getAttribute('data-index');
+        const selectedConcepts = JSON.parse(e.target.closest('tr').querySelector('.d-none').textContent);
+
+        // Obtener referencia al tbody de la tabla de conceptos
+        const conceptsTableBody = document.querySelector('#employeeConceptsDetailsTable tbody');
+
+        // Limpiar el contenido previo de la tabla
+        conceptsTableBody.innerHTML = '';
+
+        // Poblar la tabla con los conceptos aplicados
+        selectedConcepts.forEach(concept => {
+            const conceptRow = document.createElement('tr');
+            conceptRow.innerHTML = `
+                <td>${concept.first}</td>
+                <td>${currencyFormatter.format(concept.second)}</td>
+            `;
+            conceptsTableBody.appendChild(conceptRow);
+        });
+    });
+});
+
+    }
+
+    mainTableBody.addEventListener('click', (e) => {
+        if (e.target.classList.contains('view-details')) {
+            const index = e.target.getAttribute('data-index');
+            const selectedDebt = data[index];
+            displayEmployeeDetails(selectedDebt.employeeDebts);
+        }
+    });
+    }
+
+    function clearTables() {
+    // Limpiar tabla de detalles de empleados
+    const employeeDetailsTableBody = document.querySelector('#employeeDetailsTable tbody');
+    employeeDetailsTableBody.innerHTML = '';
+
+    // Limpiar tabla de conceptos de empleados
+    const conceptsTableBody = document.querySelector('#employeeConceptsDetailsTable tbody');
+    conceptsTableBody.innerHTML = '';
+
+   document.getElementById('totalCapital').textContent = "-";
+   document.getElementById('totalInterest').textContent = "-";
+   document.getElementById('totalDebts').textContent = "-";
+   document.getElementById('generateDebtButton').style.display = 'none';
+   
 }
 
 
