@@ -1522,10 +1522,8 @@ function populateEmployeeHistoryTable(data) {
 
 function openEditModalHistoryEmployee(data) {
     console.log(data);
-      historyModal.show();
-       document.getElementById('historyForm').reset();
-
-
+    historyModal.show();
+    document.getElementById('historyForm').reset();
     currentHistoryId = data.id;
     
     const formatDateForInput = (dateStr) => {
@@ -1850,6 +1848,7 @@ function submitHistoryForm() {
         // Mostrar mensaje de éxito
         Swal.fire('Historial guardado correctamente!', '', 'success');
         currentHistoryId = null;
+        conceptsList = [];
         loadEmployeeHistory();
         historyModal.hide();
     })
@@ -3018,6 +3017,7 @@ function postGenerateDebt(consortiumId, fromDate, toDate, dueDate) {
             'La deuda ha sido generada exitosamente.',
             'success'
         );
+           document.getElementById('generateDebtButton').style.display = 'none';
     })
     .catch(error => {
         Swal.fire(
