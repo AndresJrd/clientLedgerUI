@@ -1538,11 +1538,11 @@ function openEditModalHistoryEmployee(data) {
     // Setear valores en los campos del modal
     document.getElementById('fromDate').value = formatDateForInput(data.fromDate);
     document.getElementById('toDate').value = formatDateForInput(data.toDate);
-    document.getElementById('employeeId').value = data.employee.id;
+    document.getElementById('employeeSelectId').value = data.employee.id;
     document.getElementById('consortiumId').value = data.consourtium.id;
     document.getElementById('roleId').value = data.roleId;
     document.getElementById('salaryCategoryId').value = data.salaryCategoryId;
-    document.getElementById('employeeSeniority').value = data.jobAntique;
+    document.getElementById('employeeSeniority').value = formatDateForInput(data.startDate);
     document.getElementById('retirementMultiplier').value = data.multiplierTrash;
 
 
@@ -1639,7 +1639,7 @@ function initializeEmployeeHistory() {
     });
         // Cargar selects al abrir el modal con formateadores específicos
         loadSelectData(
-            'employeeId',
+            'employeeSelectId',
             `${BASE_URL}/v1/api/employee/all`,
             'Seleccione un empleado',
             item => `${item.firstName}  ${item.lastName} - ${item.cuil}`
@@ -1790,7 +1790,7 @@ function updateConceptsUI() {
 
 
 function submitHistoryForm() {
-    const employeeId = document.getElementById('employeeId').value;
+    const employeeId = document.getElementById('employeeSelectId').value;
     const consortiumId = document.getElementById('consortiumId').value;
     const roleId = document.getElementById('roleId').value;
     const salaryCategoryId = document.getElementById('salaryCategoryId').value;
@@ -1801,9 +1801,12 @@ function submitHistoryForm() {
     const fromDate = `${fromDateInput}T00:00:00`; // Agregar T00:00:00 para el backend
     const toDate = toDateInput ? `${toDateInput}T00:00:00` : null;   // Validar toDateInput
 
-    const employeeSeniority = document.getElementById('employeeSeniority').value;
+    const employeeSeniorityInput = document.getElementById('employeeSeniority').value;
+    const employeeSeniority = `${employeeSeniorityInput}T00:00:00`; // Agregar T00:00:00 para el backend
+
     const retirementMultiplier = document.getElementById('retirementMultiplier').value;
     const salaryModifierIds = getSelectedModifiers();
+    
 
     // Crear formData dinámicamente
     const formData = {
@@ -1813,7 +1816,7 @@ function submitHistoryForm() {
         roleId,
         salaryCategoryId,
         fromDate,
-        jobAntique: employeeSeniority,
+        startDate: employeeSeniority,
         multiplierTrash: retirementMultiplier,
         concepts: conceptsList,
         salaryModifierIds
@@ -3056,7 +3059,7 @@ async function calculateDebt() {
         }
 
         const debtData = await response.json();
-        displayDebtData(debtData);
+        populateMainTable(debtData);
     } catch (error) {
         console.error('Error al calcular la deuda:', error.message);
         Swal.fire('Error', error.message, 'error');
@@ -3064,70 +3067,134 @@ async function calculateDebt() {
 }
 
 
-function displayDebtData(debtData) {
-    const tableBody = document.querySelector('#consortiumDebtTable tbody');
-    const totalCapital = document.getElementById('totalCapital');
-    const totalInterest = document.getElementById('totalInterest');
-    const totalIDebt = document.getElementById('totalIDebt');
+    function populateMainTable(data) {
+    const mainTableBody = document.querySelector('#mainDebtTable tbody');
+    const employeeDetailsTableBody = document.querySelector('#employeeDetailsTable tbody');
 
-    if ($.fn.DataTable.isDataTable('#consortiumDebtTable')) {
-        $('#consortiumDebtTable').DataTable().clear().destroy();
+    // Verificar y destruir DataTable si ya está inicializado
+    if ($.fn.DataTable.isDataTable('#mainDebtTable')) {
+        $('#mainDebtTable').DataTable().clear().destroy();
     }
 
-    let totalCapitalValue = 0;
-    let totalInterestValue = 0;
 
-    tableBody.innerHTML = '';
 
-    const currencyFormatter = new Intl.NumberFormat('es-AR', {
+    // Limpiar el contenido del cuerpo de la tabla
+    mainTableBody.innerHTML = '';
+
+     clearTables();
+
+
+
+        const currencyFormatter = new Intl.NumberFormat('es-AR', {
         style: 'currency',
         currency: 'ARS',
         minimumFractionDigits: 2,
-        maximumFractionDigits: 2
     });
-
-    debtData.employeeDebts.forEach(employee => {
-        employee.debts.forEach(debt => {
+        data.forEach((item, index) => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${employee.firstName} ${employee.lastName}</td>
-                <td>${employee.cuil}</td>
-                <td>${debt.dateFrom}</td>
-                <td>${debt.dateTo}</td>
-                <td>${currencyFormatter.format(debt.capital)}</td>
-                <td>${currencyFormatter.format(debt.interest)}</td>
+                <td><button class="btn btn-sm btn-info view-details" data-index="${index}">🔍</button></td>
+                <td>${formatDateMS(item.from)}</td>
+                <td>${currencyFormatter.format(item.capital)}</td>
+                <td>${currencyFormatter.format(item.interest)}</td>
+                 <td>${currencyFormatter.format(item.interest + item.capital)}</td>
+                <td class="d-none">${JSON.stringify(item.employeeDebts)}</td>
             `;
-            tableBody.appendChild(row);
-            totalCapitalValue += parseFloat(debt.capital);
-            totalInterestValue += parseFloat(debt.interest);
+            mainTableBody.appendChild(row);
+        });
+
+   const totalCapital = data.reduce((acc, item) => acc + item.capital, 0);
+   const totalInterest = data.reduce((acc, item) => acc + item.interest, 0);
+
+   document.getElementById('totalCapital').textContent = currencyFormatter.format(totalCapital);
+   document.getElementById('totalInterest').textContent = currencyFormatter.format(totalInterest);
+   document.getElementById('totalDebts').textContent = currencyFormatter.format(totalInterest + totalCapital);
+
+
+
+        $('#mainDebtTable').DataTable({
+            language: {
+                search: 'Buscar:',
+                lengthMenu: 'Mostrar _MENU_ registros',
+                info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+                zeroRecords: 'No se encontraron resultados',
+                emptyTable: 'No hay datos disponibles',
+                paginate: {
+                    first: 'Primero',
+                    previous: 'Anterior',
+                    next: 'Siguiente',
+                    last: 'Último',
+                },
+            },
+        });
+
+    function displayEmployeeDetails(employeeDebts) {
+        employeeDetailsTableBody.innerHTML = '';
+        employeeDebts.forEach((employee, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><button class="btn btn-sm btn-warning employee-detail" data-index="${index}">🔍</button></td>
+                <td>${employee.firstName}</td>
+                <td>${employee.lastName}</td>
+                <td>${employee.cuil}</td>
+                <td>${currencyFormatter.format(employee.debts[0].details.base_salary)}</td>
+                <td>${currencyFormatter.format(employee.debts[0].details.gross_salary)}</td>
+                <td>${currencyFormatter.format(employee.debts[0].capital)}</td>
+                <td>${currencyFormatter.format(employee.debts[0].interest)}</td>
+                <td>${currencyFormatter.format(employee.debts[0].interest + employee.debts[0].capital)}</td>
+                <td class="d-none">${JSON.stringify(employee.debts[0].details.applied_concepts)}</td>
+            `;
+            employeeDetailsTableBody.appendChild(row);
+        });
+
+        // Agregar evento a los botones de detalles
+employeeDetailsTableBody.querySelectorAll('.employee-detail').forEach(button => {
+    button.addEventListener('click', (e) => {
+        const index = e.target.getAttribute('data-index');
+        const selectedConcepts = JSON.parse(e.target.closest('tr').querySelector('.d-none').textContent);
+
+        // Obtener referencia al tbody de la tabla de conceptos
+        const conceptsTableBody = document.querySelector('#employeeConceptsDetailsTable tbody');
+
+        // Limpiar el contenido previo de la tabla
+        conceptsTableBody.innerHTML = '';
+
+        // Poblar la tabla con los conceptos aplicados
+        selectedConcepts.forEach(concept => {
+            const conceptRow = document.createElement('tr');
+            conceptRow.innerHTML = `
+                <td>${concept.first}</td>
+                <td>${currencyFormatter.format(concept.second)}</td>
+            `;
+            conceptsTableBody.appendChild(conceptRow);
         });
     });
+});
 
-    totalCapital.textContent = currencyFormatter.format(totalCapitalValue);
-    totalInterest.textContent = currencyFormatter.format(totalInterestValue);
+    }
 
-    const totalDebtValue = totalCapitalValue + totalInterestValue;
-    totalIDebt.textContent = currencyFormatter.format(totalDebtValue);
-
-    $('#consortiumDebtTable').DataTable({
-        language: {
-            search: 'Buscar:',
-            lengthMenu: 'Mostrar _MENU_ registros',
-            info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
-            infoEmpty: 'Mostrando 0 a 0 de 0 registros',
-            loadingRecords: 'Cargando...',
-            zeroRecords: 'No se encontraron resultados',
-            emptyTable: 'No hay datos disponibles',
-            paginate: {
-                first: 'Primero',
-                previous: 'Anterior',
-                next: 'Siguiente',
-                last: 'Último'
-            }
+    mainTableBody.addEventListener('click', (e) => {
+        if (e.target.classList.contains('view-details')) {
+            const index = e.target.getAttribute('data-index');
+            const selectedDebt = data[index];
+            displayEmployeeDetails(selectedDebt.employeeDebts);
         }
     });
+    }
 
-    document.getElementById('generateDebtButton').style.display = 'block';
+    function clearTables() {
+    // Limpiar tabla de detalles de empleados
+    const employeeDetailsTableBody = document.querySelector('#employeeDetailsTable tbody');
+    employeeDetailsTableBody.innerHTML = '';
+
+    // Limpiar tabla de conceptos de empleados
+    const conceptsTableBody = document.querySelector('#employeeConceptsDetailsTable tbody');
+    conceptsTableBody.innerHTML = '';
+
+   document.getElementById('totalCapital').textContent = "-";
+   document.getElementById('totalInterest').textContent = "-";
+   document.getElementById('totalDebts').textContent = "-";
+   
 }
 
 
