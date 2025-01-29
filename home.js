@@ -184,6 +184,7 @@ function loadContent(contentId) {
             loadConsortiumsEmployee();
            }
            if(contentId === 'historicoEmpleados') {
+             resetEmployeeHistoryState();
              initializeEmployeeHistory();
              loadEmployeeHistory();
            }
@@ -1427,6 +1428,60 @@ let currentHistoryId = null;
 
 let historyModal; // Variable global para el modal
 
+function resetEmployeeHistoryState() {
+    console.log('resetEmployeeHistoryState: Limpiando estado de Histórico de Empleados.');
+
+    // Reiniciar variables globales
+    currentHistoryId = null;
+    conceptsList = [];
+    historyModal = null; // Reinicia la referencia global al modal
+
+    // Limpia la tabla del historial
+    const tableBody = document.getElementById('employeeHistoryTable').getElementsByTagName('tbody')[0];
+    if (tableBody) {
+        tableBody.innerHTML = ''; // Limpia las filas de la tabla
+    }
+
+    // Resetea el formulario y los campos del modal
+    const historyForm = document.getElementById('historyForm');
+    if (historyForm) {
+        historyForm.reset(); // Resetea todos los campos del formulario
+    }
+
+    // Limpia la lista de conceptos visuales
+    const conceptsListContainer = document.getElementById('conceptsList');
+    if (conceptsListContainer) {
+        conceptsListContainer.innerHTML = ''; // Limpia la lista de conceptos
+    }
+
+    // Resetear selects del modal
+    const selectIds = [
+        'employeeSelectId',
+        'consortiumId',
+        'roleId',
+        'salaryCategoryId',
+        'slaryModifierId',
+        'conceptId'
+    ];
+    selectIds.forEach(selectId => {
+        const selectElement = document.getElementById(selectId);
+        if (selectElement) {
+            selectElement.innerHTML = '<option value="" disabled selected>Seleccione una opción</option>'; // Limpia y resetea el select
+        }
+    });
+
+    // Desvincular event listeners duplicados
+    const addConceptBtn = document.getElementById('addConceptBtn');
+    if (addConceptBtn) {
+        const newButton = addConceptBtn.cloneNode(true); // Clona el botón para eliminar listeners
+        addConceptBtn.parentNode.replaceChild(newButton, addConceptBtn);
+    }
+
+    console.log('resetEmployeeHistoryState: Estado limpiado correctamente.');
+}
+
+
+
 
 function loadEmployeeHistory() {
     fetch(`${BASE_URL}/v1/api/employeeHistory/all`, {
@@ -1632,6 +1687,7 @@ function initializeEmployeeHistory() {
 
     loadHistoryBtn.addEventListener('click', () => {
          document.getElementById('historyForm').reset();
+         currentHistoryId = null;
         // Mostrar el modal
         historyModal.show();
     });
