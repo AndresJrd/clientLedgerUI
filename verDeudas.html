@@ -3,87 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ver Deudas por consorcio</title>
+    <title>Ver Deudas Generadas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/dataTables.bootstrap5.min.css">
 </head>
 <body>
     <div class="container mt-5">
-        <h1 class="text-center mb-4 border-bottom pb-3">Ver Deudas por consorcio</h1>
+        <h1 class="text-center mb-4 border-bottom pb-3">Ver Deudas Generadas</h1>
 
 
         <!-- Formulario de selección -->
-
-  
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                Selección de Consorcio y Período
+            </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-4 mb-3">
-                        <label for="consortiumSelect" class="form-label">Consorcio</label>
-                        <select class="form-select" id="consortiumSelectVerDeudas">
+                        <label for="consortiumViewDebtSelect" class="form-label">Consorcio</label>
+                        <select class="form-select" id="consortiumViewDebtSelect">
                             <option value="" disabled selected>Seleccione un Consorcio</option>
                         </select>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label for="fromDateInput" class="form-label">Desde</label>
-                        <input type="date" class="form-control" id="fromDateInput" required>
+                        <label for="fromDateInputViewDebt" class="form-label">Desde</label>
+                        <input type="date" class="form-control" id="fromDateInputViewDebt" >
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label for="toDateInput" class="form-label">Hasta</label>
-                        <input type="date" class="form-control" id="toDateInput" required>
+                        <label for="toDateInputViewDebt" class="form-label">Hasta</label>
+                        <input type="date" class="form-control" id="toDateInputViewDebt" >
                     </div>
                 </div>
-                <br>
                         <div class="d-flex justify-content-end">
             <div class="pe-2">
-                <button class="btn btn-primary" id="buscarDeudas">Buscar Deudas</button>
+                <button class="btn btn-primary" id="viewDebtDebtButton">Ver Deudas</button>
+            </div>
+            <div>
+                <button id="generateAgreementButton" class="btn btn-warning">Generar Convenio</button>
             </div>
         </div>
             </div>
+        </div>
 
-                    <!-- Tabla de modificadores salariales -->
-        <div class="row">
-            <div class="col">
-                <table class="table table-striped" id="debtDetailsTable">
+<div class="text-center my-2">
+    <h5 class="fw-bold">Total adeudado:</h5>
+    <p class="mb-0 fs-6">
+        <span class="fw-bold">Capital:</span> 
+        <span id="totalCapitalViewDebt" class="text-danger"> - </span> |
+        <span class="fw-bold">Intereses:</span> 
+        <span id="totalInterestViewDebt" class="text-danger"> - </span> |
+        <span class="fw-bold">Total:</span> 
+        <span id="totalDebtsViewDebt" class="text-danger"> - </span>
+    </p>
+</div>
+
+
+    <div class="container mt-5">
+
+        <!-- Tabla principal de deuda por mes -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                Resumen de Deuda
+            </div>
+            <div class="card-body">
+                <table class="table table-striped" id="mainDebtTableViewDebt">
                     <thead>
                         <tr>
-                            <th scope="col">Ver</th>
-                            <th scope="col">Numero</th>
-                            <th scope="col">Estado</th>
-                            <th scope="col">Desde</th>
-                            <th scope="col">Hasta</th>
-                            <th scope="col">Vencimiento</th>
-                            <th scope="col">Capital</th>
-                            <th scope="col">Interes</th>
-                            <th scope="col" style="display: none;">json</th>
-                            <th scope="col">Convenio</th>
+                            <th>Seleccionar</th>
+                            <th>Detalle</th>
+                            <th>Estado</th>
+                            <th>Mes</th>
+                            <th>Capital</th>
+                            <th>Intereses</th>
+                            <th>Total</th>
+                            <th class="d-none">Detalles</th>
+                            <th class="d-none">ID Deuda</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Los datos de los modificadores salariales se cargarán aquí -->
+                        <!-- Datos se llenarán dinámicamente -->
                     </tbody>
                 </table>
             </div>
         </div>
 
-    <div class="row">
-            <div class="col">
-                <table class="table table-striped" id="debtDetailsTable2">
+        <!-- Tabla secundaria de detalles de empleados -->
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                Detalles de Empleados
+            </div>
+            <div class="card-body">
+                <table class="table table-striped" id="employeeDetailsTableViewDebt">
                     <thead>
                         <tr>
-                            <th scope="col">Nombre</th>
-                            <th scope="col">CUIL</th>
-                            <th scope="col">Capital</th>
-                            <th scope="col">Interés</th>
+                            <th>Detalle</th>
+                            <th>Nombre</th>
+                            <th>Apellido</th>
+                            <th>CUIL</th>
+                            <th>Salario básico</th>
+                            <th>Salario bruto</th>
+                            <th>Capital</th>
+                            <th>Intereses</th>
+                            <th>Total</th>
+                            <th class="d-none">Detalles</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Los datos de los modificadores salariales se cargarán aquí -->
+                        <!-- Datos se llenarán dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+
+                    <!-- Tabla secundaria de detalles de empleados -->
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                Detalles Conceptos
+            </div>
+            <div class="card-body">
+                <table class="table table-striped" id="employeeConceptsDetailsTableViewDebt">
+                    <thead>
+                        <tr>
+                            <th>Concepto</th>
+                            <th>Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Datos se llenarán dinámicamente -->
                     </tbody>
                 </table>
             </div>
         </div>
-
+        </div>
     </div>
+    </div>
+
+<!-- Modal de Confirmación -->
+<div class="modal fade" id="generateAgreementModal" tabindex="-1" aria-labelledby="generateAgreementModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generateAgreementModalLabel">Confirmar Generación de Convenio</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="installmentSelect" class="form-label">Número de cuotas:</label>
+                    <select id="installmentSelect" class="form-select">
+                        <option value="1" selected>1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="totalDebtInput" class="form-label">Total a financiar:</label>
+                   <input type="number" id="totalDebtInput" class="form-control" min="1" step="0.01">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="saveAgreement">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

@@ -193,7 +193,7 @@ function loadContent(contentId) {
             loadConsortiums();
            }
            if (contentId === 'verDeudas') {
-            loadConsortiumsVerDeudas();
+            loadConsortiumsVerDeuda();
            }
            if(contentId ==='convenios') {
             loadConsortiumsConvenios();
@@ -2947,6 +2947,389 @@ function openNewRoleCategoryModal() {
 
 
 
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+//                                             VER DEUDAS
+//#############################################################################################################
+//#############################################################################################################
+//#############################################################################################################
+
+const debtStatuses = [
+    "Previsualizacion",
+    "Pago Pendiente",
+    "Pago Parcial",
+    "Pagada",
+    "Vencida",
+    "Cancelada",
+    "Perdonada",
+    "En convenio",
+];
+
+function setupStatusClickListener() {
+    const tableBody = document.querySelector('#mainDebtTableViewDebt tbody');
+
+    tableBody.addEventListener('click', async (event) => {
+        const target = event.target;
+        
+        // Verifica si la columna clickeada es de estado
+        if (target.cellIndex === 2) {
+            const row = target.closest('tr');
+            const debtId = row.querySelector('td:nth-child(9)').textContent.trim(); // Obtener ID de deuda (índice 9)
+            const currentStatus = target.textContent.trim(); // Estado actual
+            
+            // SweetAlert con select
+            const { value: newStatus } = await Swal.fire({
+                title: '¿Seguro de cambiar el estado de la deuda?',
+                html: `
+                    <label for="statusSelect" class="form-label">Seleccionar nuevo estado:</label>
+                    <select id="statusSelect" class="form-select">
+                        ${debtStatuses.map(status => `
+                            <option value="${status}" ${status === currentStatus ? 'selected' : ''}>${status}</option>
+                        `).join('')}
+                    </select>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Confirmar',
+                cancelButtonText: 'Cancelar',
+                preConfirm: () => {
+                    const select = document.getElementById('statusSelect');
+                    return select.value;
+                },
+            });
+
+            if (newStatus) {
+                try {
+                    // Enviar solicitud al backend para actualizar el estado
+                    const token = localStorage.getItem('token');
+                    const response = await fetch(`${BASE_URL}/v1/api/debt/${debtId}/status`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ status: newStatus })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Error al actualizar el estado de la deuda.');
+                    }
+
+                    // Actualizar la tabla visualmente
+                    target.textContent = newStatus;
+
+                    Swal.fire('Éxito', 'El estado de la deuda fue actualizado.', 'success');
+                } catch (error) {
+                    console.error(error);
+                    Swal.fire('Error', error.message, 'error');
+                }
+            }
+        }
+    });
+}
+
+function formatDateDDMMYYYY(dateString) {
+    const date = new Date(dateString);
+    
+    // Verificar si la fecha es inválida
+    if (isNaN(date.getTime())) {
+        return 'Fecha inválida'; // Retorna 'Fecha inválida' si la fecha no es válida
+    }
+    
+    const day = String(date.getDate()).padStart(2, '0'); // Asegura dos dígitos para el día
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Asegura dos dígitos para el mes
+    const year = date.getFullYear(); // Año completo
+    return `${day}/${month}/${year}`; // Formato DD/MM/YYYY
+}
+
+
+async function loadConsortiumsVerDeuda() {
+    const consortiumSelect = document.getElementById('consortiumViewDebtSelect');
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/consortium/all`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al cargar los consorcios.');
+        }
+
+        const consortiums = await response.json();
+        consortiumSelect.innerHTML = '<option value="" disabled selected>Seleccione un Consorcio</option>';
+
+        consortiums.forEach(consortium => {
+            const option = document.createElement('option');
+            option.value = consortium.id;
+            option.textContent = consortium.name;
+            consortiumSelect.appendChild(option);
+        });
+
+        document.getElementById('viewDebtDebtButton').addEventListener('click', async () => {
+            const debtViewResponse = await viewDebts(); //
+        });
+
+document.getElementById('generateAgreementButton').addEventListener('click', () => {
+    const checkboxes = document.querySelectorAll('#mainDebtTableViewDebt tbody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        Swal.fire('Atención', 'Debes seleccionar deudas para generar un convenio.', 'warning');
+        return;
+    }
+
+    // Calcular la suma total de las deudas seleccionadas
+    let total = 0;
+    checkboxes.forEach((checkbox) => {
+        const row = checkbox.closest('tr');
+        const totalCell = row.querySelector('td:nth-child(6)');
+        const amount = parseFloat(totalCell.textContent.replace(/[$,.]/g, '').replace(',', '.')) / 100;
+        total += amount;
+    });
+
+
+
+    document.getElementById('totalDebtInput').value = total;
+
+    // Mostrar el modal
+    const modal = new bootstrap.Modal(document.getElementById('generateAgreementModal'));
+    modal.show();
+});
+
+$('#saveAgreement').on('click', async function () {
+    const quotaCount = $('#installmentSelect').val();
+
+    // Obtener los IDs de las deudas seleccionadas
+    const selectedCheckboxes = document.querySelectorAll('#mainDebtTableViewDebt tbody input[type="checkbox"]:checked');
+
+const debtIds = Array.from(selectedCheckboxes).map(checkbox => {
+    const row = checkbox.closest('tr');
+    const debtIdCell = row.cells[8]; // Índice de la columna "ID Deuda" (empezando en 0)
+    return debtIdCell ? parseInt(debtIdCell.textContent, 10) : null; // Convertir el texto a número
+});
+     console.log(debtIds);
+     const validDebtIds = debtIds.filter(id => id !== null);
+     console.log(validDebtIds);
+
+    const totalAmountInput = $('#totalDebtInput').val().replace(/[$,.]/g, '').replace(',', '.'); // Remover formato de moneda
+
+    if (validDebtIds.length === 0 || !quotaCount || !totalAmountInput) {
+        Swal.fire('Error', 'Debes seleccionar deudas y completar todos los campos.', 'error');
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+
+        const response = await fetch(`${BASE_URL}/v1/api/agreement`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                debtIds: validDebtIds, // Enviar el arreglo de IDs
+                totalAmount: parseFloat(totalAmountInput) / 100,
+                quotaCount: parseInt(quotaCount, 10)
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al guardar el convenio.');
+        }
+
+        Swal.fire('Éxito', 'Convenio creado correctamente.', 'success');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('generateAgreementModal'));
+        modal.hide();
+        await viewDebts();
+    } catch (error) {
+        Swal.fire('Error', error.message, 'error');
+    }
+});
+
+
+// Evento para limpiar el modal cuando se cierra
+$('#generateAgreementModal').on('hidden.bs.modal', function () {
+    $('#installmentSelect').val('');
+    $('#totalDebtInput').val('');
+});
+
+
+
+
+    } catch (error) {
+        console.error('Error al cargar los consorcios:', error);
+        Swal.fire('Error', 'No se pudieron cargar los consorcios.', 'error');
+    }
+}
+
+async function viewDebts() {
+    const consortiumSelect = document.getElementById('consortiumViewDebtSelect');
+    const fromDate = document.getElementById('fromDateInputViewDebt').value;
+    const toDate = document.getElementById('toDateInputViewDebt').value;
+    const token = localStorage.getItem('token');
+    const consortiumId = consortiumSelect.value;
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/debt/search?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}`,
+            {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }
+        );
+
+        if (!response.ok) {
+            // Intentar extraer el mensaje del error devuelto por el backend
+            const errorResponse = await response.json();
+            throw new Error(errorResponse.result || 'Error desconocido del servidor.');
+        }
+
+        const debtData = await response.json();
+        populateMainDebtTableViewDebt(debtData);
+    } catch (error) {
+        console.error('Error al calcular la deuda:', error.message);
+        Swal.fire('Error', error.message, 'error');
+    }
+}
+
+
+    function populateMainDebtTableViewDebt(data) {
+    const mainTableBody = document.querySelector('#mainDebtTableViewDebt tbody');
+    const employeeDetailsTableBody = document.querySelector('#employeeDetailsTableViewDebt tbody');
+
+    // Verificar y destruir DataTable si ya está inicializado
+    if ($.fn.DataTable.isDataTable('#mainDebtTableViewDebt')) {
+        $('#mainDebtTableViewDebt').DataTable().clear().destroy();
+    }
+
+
+
+    // Limpiar el contenido del cuerpo de la tabla
+    mainTableBody.innerHTML = '';
+
+     clearViewDebtsTables();
+
+
+        const currencyFormatter = new Intl.NumberFormat('es-AR', {
+        style: 'currency',
+        currency: 'ARS',
+        minimumFractionDigits: 2,
+    });
+        data.forEach((item, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><input type="checkbox" class="select-debt-checkbox"></td>
+                <td><button class="btn btn-sm btn-info view-details-view-debts" data-index="${index}">🔍</button></td>
+                 <td class="debt-status"><strong>${item.status} *</strong></td> <!-- Columna de estado -->
+                <td>${formatDateMS(item.from)}</td>
+                <td>${currencyFormatter.format(item.capital)}</td>
+                <td>${currencyFormatter.format(item.interest)}</td>
+                <td>${currencyFormatter.format(item.interest + item.capital)}</td>
+                <td class="d-none">${JSON.stringify(item.employeeDebts)}</td>
+                <td class="d-none">${item.id}</td>
+            `;
+            mainTableBody.appendChild(row);
+        });
+
+   const totalCapital = data.reduce((acc, item) => acc + item.capital, 0);
+   const totalInterest = data.reduce((acc, item) => acc + item.interest, 0);
+
+   document.getElementById('totalCapitalViewDebt').textContent = currencyFormatter.format(totalCapital);
+   document.getElementById('totalInterestViewDebt').textContent = currencyFormatter.format(totalInterest);
+   document.getElementById('totalDebtsViewDebt').textContent = currencyFormatter.format(totalInterest + totalCapital);
+
+
+        $('#mainDebtTableViewDebt').DataTable({
+            language: {
+                search: 'Buscar:',
+                lengthMenu: 'Mostrar _MENU_ registros',
+                info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+                zeroRecords: 'No se encontraron resultados',
+                emptyTable: 'No hay datos disponibles',
+                paginate: {
+                    first: 'Primero',
+                    previous: 'Anterior',
+                    next: 'Siguiente',
+                    last: 'Último',
+                },
+            },
+        });
+
+    function displayEmployeeDetailsViewDebts(employeeDebts) {
+        employeeDetailsTableBody.innerHTML = '';
+        employeeDebts.forEach((employee, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><button class="btn btn-sm btn-warning employee-detail-view-debts" data-index="${index}">🔍</button></td>
+                <td>${employee.firstName}</td>
+                <td>${employee.lastName}</td>
+                <td>${employee.cuil}</td>
+                <td>${currencyFormatter.format(employee.debts[0].details.base_salary)}</td>
+                <td>${currencyFormatter.format(employee.debts[0].details.gross_salary)}</td>
+                <td>${currencyFormatter.format(employee.debts[0].capital)}</td>
+                <td>${currencyFormatter.format(employee.debts[0].interest)}</td>
+                <td>${currencyFormatter.format(employee.debts[0].interest + employee.debts[0].capital)}</td>
+                <td class="d-none">${JSON.stringify(employee.debts[0].details.applied_concepts)}</td>
+            `;
+            employeeDetailsTableBody.appendChild(row);
+        });
+
+        // Agregar evento a los botones de detalles
+employeeDetailsTableBody.querySelectorAll('.employee-detail-view-debts').forEach(button => {
+    button.addEventListener('click', (e) => {
+        const index = e.target.getAttribute('data-index');
+        const selectedConcepts = JSON.parse(e.target.closest('tr').querySelector('.d-none').textContent);
+
+        // Obtener referencia al tbody de la tabla de conceptos
+        const conceptsTableBody = document.querySelector('#employeeConceptsDetailsTableViewDebt tbody');
+
+        // Limpiar el contenido previo de la tabla
+        conceptsTableBody.innerHTML = '';
+
+        // Poblar la tabla con los conceptos aplicados
+        selectedConcepts.forEach(concept => {
+            const conceptRow = document.createElement('tr');
+            conceptRow.innerHTML = `
+                <td>${concept.first}</td>
+                <td>${currencyFormatter.format(concept.second)}</td>
+            `;
+            conceptsTableBody.appendChild(conceptRow);
+        });
+    });
+});
+
+    }
+
+    mainTableBody.addEventListener('click', (e) => {
+        if (e.target.classList.contains('view-details-view-debts')) {
+            const index = e.target.getAttribute('data-index');
+            const selectedDebt = data[index];
+            displayEmployeeDetailsViewDebts(selectedDebt.employeeDebts);
+        }
+    });
+       setupStatusClickListener();
+    }
+
+        function clearViewDebtsTables() {
+    // Limpiar tabla de detalles de empleados
+    const employeeDetailsTableBody = document.querySelector('#employeeDetailsTableViewDebt tbody');
+    employeeDetailsTableBody.innerHTML = '';
+
+    // Limpiar tabla de conceptos de empleados
+    const conceptsTableBody = document.querySelector('#employeeConceptsDetailsTableViewDebt tbody');
+    conceptsTableBody.innerHTML = '';
+
+   document.getElementById('totalCapitalViewDebt').textContent = "-";
+   document.getElementById('totalInterestViewDebt').textContent = "-";
+   document.getElementById('totalDebtsViewDebt').textContent = "-";
+
+
+}
+
 
 //#############################################################################################################
 //#############################################################################################################
@@ -3003,19 +3386,6 @@ async function loadConsortiums() {
     }
 }
 
-function formatDateDDMMYYYY(dateString) {
-    const date = new Date(dateString);
-    
-    // Verificar si la fecha es inválida
-    if (isNaN(date.getTime())) {
-        return 'Fecha inválida'; // Retorna 'Fecha inválida' si la fecha no es válida
-    }
-    
-    const day = String(date.getDate()).padStart(2, '0'); // Asegura dos dígitos para el día
-    const month = String(date.getMonth() + 1).padStart(2, '0'); // Asegura dos dígitos para el mes
-    const year = date.getFullYear(); // Año completo
-    return `${day}/${month}/${year}`; // Formato DD/MM/YYYY
-}
 
 
 function clickGenerateDebt(){
@@ -3816,216 +4186,6 @@ function initializeConceptView() {
             Swal.fire('Error', error.message, 'error');
         }
     }
-}
-
-
-//#############################################################################################################
-//#############################################################################################################
-//#############################################################################################################
-//                                             VER DEUDAS
-//#############################################################################################################
-//#############################################################################################################
-//#############################################################################################################
-
-async function loadConsortiumsVerDeudas() {
-    const consortiumSelect = document.getElementById('consortiumSelectVerDeudas');
-    const token = localStorage.getItem('token');
-
-    try {
-        const response = await fetch(`${BASE_URL}/v1/api/consortium/all`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error('Error al cargar los consorcios.');
-        }
-
-        const consortiums = await response.json();
-        consortiumSelect.innerHTML = '<option value="" disabled selected>Seleccione un Consorcio</option>';
-
-        consortiums.forEach(consortium => {
-            const option = document.createElement('option');
-            option.value = consortium.id;
-            option.textContent = consortium.name;
-            consortiumSelect.appendChild(option);
-        });
-
-        document.getElementById('buscarDeudas').addEventListener('click',() => listarDeudas());
-
-    } catch (error) {
-        console.error('Error al cargar los consorcios:', error);
-        Swal.fire('Error', 'No se pudieron cargar los consorcios.', 'error');
-    }
-}
-
-    async function listarDeudas() {
-        try {
-            const consortiumId = document.getElementById('consortiumSelectVerDeudas').value;
-            const fromDate = document.getElementById('fromDateInput').value;
-            const toDate = document.getElementById('toDateInput').value;
-            const token = localStorage.getItem('token');
-
-            const response = await fetch(`${BASE_URL}/v1/api/debt/search?consortiumId=${consortiumId}&fromDate=${fromDate}&toDate=${toDate}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Error al cargar los conceptos.');
-            }
-
-            const concepts = await response.json();
-            const tableBody = document.querySelector('#debtDetailsTable tbody');
-
-            tableBody.innerHTML = concepts.map(debt => `
-                <tr>
-                    <td>
-                      <i class="bi bi-search view-debts" style="cursor: pointer;" data-employee-debts='${JSON.stringify(debt.employeeDebts)}'></i>
-                    </td>
-                    <td>${debt.id}</td>
-                    <td>${debt.status}</td>
-                    <td>${debt.from}</td>
-                    <td>${debt.to}</td>
-                    <td>${debt.dueDateFirst}</td>
-                    <td>${debt.capital}</td>
-                    <td>${debt.interest}</td>
-                    <td class="d-none">${JSON.stringify(debt.employeeDebts)}</td>
-                    <td>
-                         ${['Pago Pendiente', 'Previsualizacion'].includes(debt.status) ? 
-                                `<button class="btn btn-warning btn-create-agreement" 
-                                     data-id="${debt.id}" 
-                                    data-capital="${debt.capital}" 
-                                    data-interest="${debt.interest}">
-                                    Crear
-                        </button>` : ''}
-                    </td>
-                </tr>
-        `).join('');
-
-        
-        $('#debtDetailsTable').DataTable();
-
-        $('.view-debts').on('click', function () {
-            const employeeDebts = JSON.parse($(this).closest('tr').find('.d-none').text());
-            renderEmployeeDebts(employeeDebts);
-        });
-
-         $('.btn-create-agreement').on('click', function () {
-            const debtId = $(this).data('id');
-            const capital = parseFloat($(this).data('capital'));
-            const interest = parseFloat($(this).data('interest'));
-            openAgreementModal(debtId, capital + interest);
-        });
-
-        } catch (error) {
-            Swal.fire('Error', error.message, 'error');
-        }
-    }
-
-    function openAgreementModal(debtId, totalAmount) {
-    const modalHtml = `
-        <div class="modal" tabindex="-1" id="agreementModal">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Crear Convenio</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="agreementForm">
-                            <div class="mb-3">
-                                <label for="debtIdInput" class="form-label">Numero Deuda</label>
-                                <input type="text" class="form-control" id="debtIdInput" value="${debtId}" readonly>
-                            </div>
-                            <div class="mb-3">
-                                <label for="totalAmountInput" class="form-label">Monto Total</label>
-                                <input type="number" class="form-control" id="totalAmountInput" value="${totalAmount.toFixed(2)}" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="quotaCountSelect" class="form-label">Cuotas</label>
-                                <select class="form-select" id="quotaCountSelect" required>
-                                    ${Array.from({ length: 48 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('')}
-                                </select>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                        <button type="button" class="btn btn-primary" id="saveAgreement">Guardar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    $(document.body).append(modalHtml);
-    const modal = new bootstrap.Modal(document.getElementById('agreementModal'));
-    modal.show();
-
-    $('#saveAgreement').on('click', async function () {
-        const quotaCount = $('#quotaCountSelect').val();
-        const debtIdInput = $('#debtIdInput').val();
-        const totalAmountInput = $('#totalAmountInput').val();
-
-        if (!quotaCount || !totalAmountInput) {
-            Swal.fire('Error', 'Todos los campos son obligatorios.', 'error');
-            return;
-        }
-
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('https://clientledger-dev-production.up.railway.app/v1/api/agreement', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    debtId: parseInt(debtIdInput),
-                    totalAmount: parseFloat(totalAmountInput),
-                    quotaCount: parseInt(quotaCount)
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error('Error al guardar el convenio.');
-            }
-
-            Swal.fire('Éxito', 'Convenio creado correctamente.', 'success');
-            modal.hide();
-            listarDeudas();
-        } catch (error) {
-            Swal.fire('Error', error.message, 'error');
-        }
-    });
-
-    $('#agreementModal').on('hidden.bs.modal', function () {
-        $(this).remove();
-    });
-}
-
-    function renderEmployeeDebts(employeeDebts) {
-    const debtDetailsTable2 = $('#debtDetailsTable2 tbody');
-    debtDetailsTable2.empty();
-
-    employeeDebts.forEach(employee => {
-        employee.debts.forEach(debt => {
-            const row = `
-                <tr>
-                    <td>${employee.firstName} ${employee.lastName}</td>
-                    <td>${employee.cuil}</td>
-                    <td>${debt.capital?.toFixed(2) || 0}</td>
-                    <td>${debt.interest?.toFixed(2) || 0}</td>
-                </tr>
-            `;
-            debtDetailsTable2.append(row);
-        });
-    });
 }
 
 //#############################################################################################################
