@@ -3149,6 +3149,66 @@ const debtIds = Array.from(selectedCheckboxes).map(checkbox => {
     }
 });
 
+$('#printDebts').on('click', async function () {
+    const selectedCheckboxes = document.querySelectorAll('#mainDebtTableViewDebt tbody input[type="checkbox"]:checked');
+    const debtIds = Array.from(selectedCheckboxes).map(checkbox => {
+        const row = checkbox.closest('tr');
+        const debtIdCell = row.querySelector('td.d-none:last-child'); // Última columna oculta
+        return debtIdCell ? debtIdCell.textContent.trim() : null; // Asegúrate de que sea texto
+    });
+
+    const validDebtIds = debtIds.filter(id => id !== null);
+
+    if (validDebtIds.length === 0) {
+        Swal.fire('Error', 'Debes seleccionar al menos una deuda para imprimir.', 'error');
+        return;
+    }
+
+    const confirmResult = await Swal.fire({
+        title: '¿Estás seguro?',
+        text: `Vas a generar el recibo para ${validDebtIds.length} deudas.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, generar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirmResult.isConfirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${BASE_URL}/v1/api/debt/pdf/recipt`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(validDebtIds) // Enviar directamente el arreglo
+        });
+
+        if (!response.ok) {
+            throw new Error('Hubo un problema al generar el PDF.');
+        }
+
+        const pdfBlob = await response.blob();
+        const url = window.URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'recibo.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        Swal.fire('Éxito', 'El PDF se generó correctamente.', 'success');
+    } catch (error) {
+        console.error(error);
+        Swal.fire('Error', error.message, 'error');
+    }
+});
+
+
+
 
 // Evento para limpiar el modal cuando se cierra
 $('#generateAgreementModal').on('hidden.bs.modal', function () {
