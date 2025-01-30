@@ -3085,7 +3085,7 @@ document.getElementById('generateAgreementButton').addEventListener('click', () 
     let total = 0;
     checkboxes.forEach((checkbox) => {
         const row = checkbox.closest('tr');
-        const totalCell = row.querySelector('td:nth-child(6)');
+        const totalCell = row.querySelector('td:nth-child(7)');
         const amount = parseFloat(totalCell.textContent.replace(/[$,.]/g, '').replace(',', '.')) / 100;
         total += amount;
     });
