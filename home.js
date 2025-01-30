@@ -1430,6 +1430,7 @@ let historyModal; // Variable global para el modal
 
 function resetEmployeeHistoryState() {
     console.log('resetEmployeeHistoryState: Limpiando estado de Histórico de Empleados.');
+    isListenerAdded = false;
 
     // Reiniciar variables globales
     currentHistoryId = null;
