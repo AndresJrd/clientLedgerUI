@@ -204,6 +204,28 @@ function loadContent(contentId) {
             console.error('Failed to load content:', error);
         });
 }
+
+function formatDateTime(dateString) {
+    if (!dateString) return null; // Si la fecha es null o undefined, retorna null
+
+    let date = new Date(dateString);
+    
+    let day = String(date.getDate()).padStart(2, '0');
+    let month = String(date.getMonth() + 1).padStart(2, '0'); // getMonth() es base 0
+    let year = date.getFullYear();
+
+    let hours = String(date.getHours()).padStart(2, '0');
+    let minutes = String(date.getMinutes()).padStart(2, '0');
+    let seconds = String(date.getSeconds()).padStart(2, '0');
+
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+}
+
+
+function formatDateMS(dateString) {
+    const [year, month, day] = dateString.split('-'); // Dividir el formato ISO (YYYY-MM-DD)
+    return `${day}/${month}/${year}`; // Devolver el formato DD/MM/YYYY
+}
 //#############################################################################################################
 //#############################################################################################################
 //#############################################################################################################
@@ -264,7 +286,8 @@ async function createEmployee() {
         address: document.getElementById('address').value,
         cellPhone: document.getElementById('phoneNumber').value,
         cuil: document.getElementById('cuil').value,
-        cityId: document.getElementById('cityType').value
+        cityId: document.getElementById('cityType').value,
+        zipCode: document.getElementById('cp').value
     };
 
     try {
@@ -312,7 +335,8 @@ async function updateEmployee() {
         address: document.getElementById('address').value,
         cellPhone: document.getElementById('phoneNumber').value,
         cuil: document.getElementById('cuil').value,
-        cityId: document.getElementById('cityType').value
+        cityId: document.getElementById('cityType').value,
+        zipCode: document.getElementById('cp').value
     };
 
     try {
@@ -1209,7 +1233,6 @@ function initializeConsortiumView() {
 //#############################################################################################################
 
 
-
 async function loadCategories() {
     const token = localStorage.getItem('token');
     const table = $('#categoriesTable');
@@ -1241,7 +1264,7 @@ async function loadCategories() {
             const row = `
                 <tr>
                     <td>${category.level}</td>
-                    <td>${new Date(category.createdAt).toLocaleString()}</td>
+                    <td>${formatDateTime(category.createdAt)}</td>
                     <td>${category.createdBy || '-'}</td>
                     <td>${category.updatedAt || '-'}</td>
                     <td>${category.updatedBy || '-'}</td>
@@ -1483,7 +1506,6 @@ function resetEmployeeHistoryState() {
 
 
 
-
 function loadEmployeeHistory() {
     fetch(`${BASE_URL}/v1/api/employeeHistory/all`, {
         method: 'GET',
@@ -1501,6 +1523,86 @@ function loadEmployeeHistory() {
 }
 
 function populateEmployeeHistoryTable(data) {
+    const table = $('#employeeHistoryTable');
+
+    // Verificar si DataTable ya está inicializado y destruirlo antes de recargar datos
+    if ($.fn.DataTable.isDataTable('#employeeHistoryTable')) {
+        table.DataTable().clear().destroy();
+    }
+
+    const tableBody = document.getElementById('employeeHistoryTable').getElementsByTagName('tbody')[0];
+    tableBody.innerHTML = ''; // Limpiar la tabla antes de agregar nuevos datos
+
+    const formatDateDMY = (dateStr) => {
+        if (!dateStr) return '-';
+        const [year, month, day] = dateStr.split('-');
+        return `${day}/${month}/${year}`; // Convertir a DD/MM/YYYY
+    };
+
+    data.forEach(item => {
+        const row = tableBody.insertRow();
+
+        // Celda para la lupa (Ver detalles)
+        const searchIconCell = row.insertCell();
+        searchIconCell.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16" style="cursor:pointer;">
+                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+            </svg>`;
+        searchIconCell.style.textAlign = 'center';
+        searchIconCell.addEventListener('click', () => openEditModalHistoryEmployee(item));
+
+        // Celdas ocultas para los IDs
+        row.insertCell().textContent = item.id;
+        row.insertCell().textContent = item.employee.id;
+        row.insertCell().textContent = item.consourtium.id;
+        row.insertCell().textContent = item.salaryCategoryId;
+
+        // Celdas visibles con la información del historial
+        row.insertCell().textContent = `${item.employee.firstName} ${item.employee.lastName}`;
+        row.insertCell().textContent = item.employee.documentNumber;
+        row.insertCell().textContent = item.consourtium.name;
+        row.insertCell().textContent = item.roleName;
+        row.insertCell().textContent = item.salaryCategoryLevel;
+        row.insertCell().textContent = formatDateDMY(item.fromDate);
+        row.insertCell().textContent = item.toDate ? formatDateDMY(item.toDate) : '-';
+
+        // Botón de eliminar
+        const deleteButtonCell = row.insertCell();
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Borrar';
+        deleteButton.className = 'btn btn-danger btn-sm';
+        deleteButton.style.cursor = 'pointer';
+        deleteButton.addEventListener('click', () => confirmDelete(item.id, `${item.employee.firstName} ${item.employee.lastName}`));
+        deleteButtonCell.appendChild(deleteButton);
+    });
+
+table.DataTable({
+    language: {
+        search: "Buscar:",
+        lengthMenu: "Mostrar _MENU_ registros",
+        info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+        infoEmpty: "No hay registros disponibles",
+        zeroRecords: "No se encontraron resultados",
+        emptyTable: "No hay datos disponibles en la tabla",
+        paginate: {
+            first: "Primero",
+            previous: "Anterior",
+            next: "Siguiente",
+            last: "Último",
+        },
+    },
+    destroy: true, // Permite reinicializar DataTable sin errores
+    responsive: true, // Hace que la tabla sea responsiva
+    autoWidth: false, // Evita que las columnas se desconfiguren
+    columnDefs: [
+        { targets: [1, 2, 3, 4], visible: false }, // Ocultar columnas por índice
+    ],
+});
+
+}
+
+
+/*function populateEmployeeHistoryTable(data) {
     const tableBody = document.getElementById('employeeHistoryTable').getElementsByTagName('tbody')[0];
     tableBody.innerHTML = ''; // Limpiar la tabla antes de agregar nuevos datos
 
@@ -1574,7 +1676,7 @@ function populateEmployeeHistoryTable(data) {
         deleteButton.addEventListener('click', () => confirmDelete(item.id, `${item.employee.firstName} ${item.employee.lastName}`));
         deleteButtonCell.appendChild(deleteButton);
     });
-}
+} */
 
 function openEditModalHistoryEmployee(data) {
     console.log(data);
@@ -2379,10 +2481,7 @@ async function loadModifiersSelectModal() {
     }
 }
 
-function formatDateMS(dateString) {
-    const [year, month, day] = dateString.split('-'); // Dividir el formato ISO (YYYY-MM-DD)
-    return `${day}/${month}/${year}`; // Devolver el formato DD/MM/YYYY
-}
+
 
 async function fetchPlanillaDetails() {
     const planillaSelect = document.getElementById('planillaMofidierSelect');
@@ -2754,13 +2853,10 @@ async function fetchPlanillaRoleCategoryDetails() {
                     const fromDateFormatted = formatDatePR(planilla.fromDate); // Usar formatDate
                     const toDateFormatted = formatDatePR(planilla.toDate); // Usar formatDate
 
-                    const createdAtFormatted = planilla.createdAt
-                        ? `${formatDate(planilla.createdAt.split('T')[0])}, ${planilla.createdAt.split('T')[1].split('.')[0]}`
-                        : '-';
+                    const createdAtFormatted = formatDateTime(planilla.createdAt);
 
-                    const updatedAtFormatted = planilla.updatedAt
-                        ? `${formatDate(planilla.updatedAt.split('T')[0])}, ${planilla.updatedAt.split('T')[1].split('.')[0]}`
-                        : '-';
+                    const updatedAtFormatted = formatDateTime(planilla.updatedAt);
+        
 
                     const row = document.createElement('tr');
                     row.innerHTML = `
@@ -2963,23 +3059,23 @@ const debtStatuses = [
     "Pagada",
     "Vencida",
     "Cancelada",
-    "Perdonada",
-    "En convenio",
+    "Perdonada"
 ];
 
-function setupStatusClickListener() {
+function setupStatusButtonListener() {
     const tableBody = document.querySelector('#mainDebtTableViewDebt tbody');
 
     tableBody.addEventListener('click', async (event) => {
         const target = event.target;
-        
-        // Verifica si la columna clickeada es de estado
-        if (target.cellIndex === 2) {
+
+        // Verifica si se hizo click en el botón "Cambiar Estado"
+        if (target.classList.contains('change-status-btn')) {
             const row = target.closest('tr');
-            const debtId = row.querySelector('td:nth-child(9)').textContent.trim(); // Obtener ID de deuda (índice 9)
-            const currentStatus = target.textContent.trim(); // Estado actual
-            
-            // SweetAlert con select
+            const statusCell = row.querySelector('.debt-status'); // Obtiene la celda de estado
+            const debtId = row.querySelector('td:nth-child(10)').textContent.trim(); // ID de la deuda
+            const currentStatus = statusCell.textContent.trim(); // Estado actual
+
+            // SweetAlert con select de estado
             const { value: newStatus } = await Swal.fire({
                 title: '¿Seguro de cambiar el estado de la deuda?',
                 html: `
@@ -3013,11 +3109,13 @@ function setupStatusClickListener() {
                     });
 
                     if (!response.ok) {
-                        throw new Error('Error al actualizar el estado de la deuda.');
+                        // Si la respuesta tiene un error, intentar leer el mensaje de error del backend
+                        const errorResponse = await response.json();
+                        throw new Error(errorResponse.result || 'Error desconocido al actualizar el estado.');
                     }
 
                     // Actualizar la tabla visualmente
-                    target.textContent = newStatus;
+                    statusCell.textContent = newStatus;
 
                     Swal.fire('Éxito', 'El estado de la deuda fue actualizado.', 'success');
                 } catch (error) {
@@ -3085,7 +3183,7 @@ document.getElementById('generateAgreementButton').addEventListener('click', () 
     let total = 0;
     checkboxes.forEach((checkbox) => {
         const row = checkbox.closest('tr');
-        const totalCell = row.querySelector('td:nth-child(7)');
+        const totalCell = row.querySelector('td:nth-child(8)');
         const amount = parseFloat(totalCell.textContent.replace(/[$,.]/g, '').replace(',', '.')) / 100;
         total += amount;
     });
@@ -3285,7 +3383,8 @@ async function viewDebts() {
             row.innerHTML = `
                 <td><input type="checkbox" class="select-debt-checkbox"></td>
                 <td><button class="btn btn-sm btn-info view-details-view-debts" data-index="${index}">🔍</button></td>
-                 <td class="debt-status"><strong>${item.status} *</strong></td> <!-- Columna de estado -->
+                <td class="debt-status">${item.status}</td> <!-- Columna de estado -->
+                <td><button class="btn btn-sm btn-primary change-status-btn">Cambiar Estado</button></td> <!-- Nueva columna Acción -->
                 <td>${formatDateMS(item.from)}</td>
                 <td>${currencyFormatter.format(item.capital)}</td>
                 <td>${currencyFormatter.format(item.interest)}</td>
@@ -3372,7 +3471,7 @@ employeeDetailsTableBody.querySelectorAll('.employee-detail-view-debts').forEach
             displayEmployeeDetailsViewDebts(selectedDebt.employeeDebts);
         }
     });
-       setupStatusClickListener();
+       setupStatusButtonListener();
     }
 
         function clearViewDebtsTables() {
@@ -3459,9 +3558,9 @@ function clickGenerateDebt(){
     Swal.fire({
         title: 'Confirmar Generación de Deuda',
         html: `¿Está seguro de generar una deuda para el consorcio <b>${consortiumName}</b>? <br> entre las fechas:<br>` +
-              `Desde: <b>${formatDateDDMMYYYY(fromDateInput)}</b><br>` +
-              `Hasta: <b>${formatDateDDMMYYYY(toDateInput)}</b><br>` +
-              `Con fecha de pago: <b>${formatDateDDMMYYYY(dueDateInput)}</b><br>` +
+              `Desde: <b>${formatDateMS(fromDateInput)}</b><br>` +
+              `Hasta: <b>${formatDateMS(toDateInput)}</b><br>` +
+              `Con fecha de pago: <b>${formatDateMS(dueDateInput)}</b><br>` +
               `Total: <b>${document.getElementById('totalDebts').textContent}</b>`,
         icon: 'warning',
         showCancelButton: true,
@@ -3873,7 +3972,10 @@ async function loadInterests() {
 //#############################################################################################################
 //#############################################################################################################
 
+let conceptConfigId = null;
+
 function initializeConceptConfigView() {
+    conceptConfigId = null;
     const newConfigBtn = document.getElementById('newConfigBtn');
     const conceptConfigForm = document.getElementById('conceptConfigForm');
     const conceptConfigModal = new bootstrap.Modal(document.getElementById('conceptConfigModal'));
@@ -3914,8 +4016,9 @@ function initializeConceptConfigView() {
             return;
         }
         const configData = gatherConceptConfigFormData();
-        configData.id = document.getElementById('configId').value;
+        configData.id = conceptConfigId;
         await saveConceptConfig('PATCH', configData, 'Configuración actualizada exitosamente');
+        conceptConfigId = null;
     }
 
     function gatherConceptConfigFormData() {
@@ -4025,6 +4128,7 @@ function initializeConceptConfigView() {
     }
 
     async function fillAndShowModalConfig(config) {
+        conceptConfigId = config.id;
         await loadConceptTypes();
         document.getElementById('configName').value = config.name || '';
         document.getElementById('conceptType').value = config.conceptType || '';
