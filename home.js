@@ -3129,7 +3129,7 @@ $('#saveAgreement').on('click', async function () {
 
 const debtIds = Array.from(selectedCheckboxes).map(checkbox => {
     const row = checkbox.closest('tr');
-    const debtIdCell = row.cells[8]; // Índice de la columna "ID Deuda" (empezando en 0)
+    const debtIdCell = row.cells[9]; // Índice de la columna "ID Deuda" (empezando en 0)
     return debtIdCell ? parseInt(debtIdCell.textContent, 10) : null; // Convertir el texto a número
 });
      console.log(debtIds);
