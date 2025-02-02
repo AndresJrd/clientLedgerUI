@@ -206,7 +206,7 @@ function loadContent(contentId) {
 }
 
 function formatDateTime(dateString) {
-    if (!dateString) return null; // Si la fecha es null o undefined, retorna null
+    if (!dateString) return "-"; // Si la fecha es null o undefined, retorna null
 
     let date = new Date(dateString);
     
@@ -4344,7 +4344,6 @@ tableBody.innerHTML = concepts.map(debt => `
           <i class="bi bi-search view-agree" style="cursor: pointer;" data-agree='${JSON.stringify(debt.quotas)}'></i>
         </td>
         <td>${debt.id}</td>
-        <td>${debt.debtId}</td>
         <td>${debt.agreementStatus}</td>
         <td>$${parseFloat(debt.totalAmount).toFixed(2)}</td>
         <td>${debt.quotas.length}</td>
@@ -4394,8 +4393,9 @@ function renderAgreeDetails(quotas, convenioId) {
                 <td>${convenioId}</td>
                 <td>${quota.number}</td>
                 <td>$${quota.amount?.toFixed(2) || 0}</td>
-                <td>${quota.paidDate || ''}</td>
-                <td>${quota.expirationDate || ''}</td>
+                <td>$${quota.interests?.toFixed(2) || 0}</td>
+                <td>${formatDateTime(quota.paidDate) || ''}</td>
+                <td>${formatDateTime(quota.expirationDate) || ''}</td>
                 <td>${payButton}</td>
             </tr>
         `;
@@ -4437,8 +4437,9 @@ async function confirmPayment(quotaId, quotaNumber, convenioId) {
             if (!response.ok) {
                 throw new Error('Error al agendar el pago.');
             }
-
             Swal.fire('Éxito', 'El pago ha sido agendado correctamente.', 'success');
+            $('#conveniosTable2 tbody').empty();
+            listarConvenios();
         } catch (error) {
             Swal.fire('Error', error.message, 'error');
         }
