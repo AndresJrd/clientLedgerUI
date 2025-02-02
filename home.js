@@ -1505,7 +1505,6 @@ function resetEmployeeHistoryState() {
 }
 
 
-
 function loadEmployeeHistory() {
     fetch(`${BASE_URL}/v1/api/employeeHistory/all`, {
         method: 'GET',
@@ -1601,82 +1600,6 @@ table.DataTable({
 
 }
 
-
-/*function populateEmployeeHistoryTable(data) {
-    const tableBody = document.getElementById('employeeHistoryTable').getElementsByTagName('tbody')[0];
-    tableBody.innerHTML = ''; // Limpiar la tabla antes de agregar nuevos datos
-
-
-  const formatDateDMY = (dateStr) => {
-        const [year, month, day] = dateStr.split('-');
-        return `${day}/${month}/${year}`; // Convertir a DD/MM/YYYY
-    };
-
-    data.forEach(item => {
-        const row = tableBody.insertRow();
-
-        // Celda para la lupa
-        const searchIconCell = row.insertCell();
-        searchIconCell.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16" style="cursor:pointer;">
-                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
-            </svg>`;
-        searchIconCell.style.textAlign = 'center';
-
-        // Evento para abrir el modal de edición
-        searchIconCell.addEventListener('click', () => openEditModalHistoryEmployee(item));
-
-        // Celdas ocultas para los IDs
-        const idCell = row.insertCell();
-        idCell.textContent = item.id;
-        idCell.style.display = 'none';
-
-        const employeeIdCell = row.insertCell();
-        employeeIdCell.textContent = item.employee.id;
-        employeeIdCell.style.display = 'none';
-
-        const consortiumIdCell = row.insertCell();
-        consortiumIdCell.textContent = item.consourtium.id;
-        consortiumIdCell.style.display = 'none';
-
-        const salaryCategoryIdCell = row.insertCell();
-        salaryCategoryIdCell.textContent = item.salaryCategoryId;
-        salaryCategoryIdCell.style.display = 'none';
-
-        // Celdas visibles para otros datos
-        const employeeCell = row.insertCell();
-        employeeCell.textContent = item.employee.firstName + ' ' + item.employee.lastName;
-
-        const documentNumberCell = row.insertCell();
-        documentNumberCell.textContent = item.employee.documentNumber;
-
-        const consortiumCell = row.insertCell();
-        consortiumCell.textContent = item.consourtium.name;
-
-        const roleCell = row.insertCell();
-        roleCell.textContent = item.roleName;
-
-        const salaryCategoryLevelCell = row.insertCell();
-        salaryCategoryLevelCell.textContent = item.salaryCategoryLevel;
-
-    
-        
-        const fromCell = row.insertCell();
-        fromCell.textContent = formatDateDMY(item.fromDate);
-
-
-        const toCell = row.insertCell();
-        toCell.textContent = item.toDate ? formatDateDMY(item.toDate) : '-';
-
-        const deleteButtonCell = row.insertCell();
-        const deleteButton = document.createElement('button');
-        deleteButton.textContent = 'Borrar';
-        deleteButton.className = 'btn btn-danger btn-sm';
-        deleteButton.style.cursor = 'pointer';
-        deleteButton.addEventListener('click', () => confirmDelete(item.id, `${item.employee.firstName} ${item.employee.lastName}`));
-        deleteButtonCell.appendChild(deleteButton);
-    });
-} */
 
 function openEditModalHistoryEmployee(data) {
     console.log(data);
@@ -1782,6 +1705,7 @@ function initializeEmployeeHistory() {
         const modalElement = document.getElementById('historyModal');
         if (modalElement) {
             historyModal = new bootstrap.Modal(modalElement);
+            isSaveEmployeeHistory = false;
             console.log('historyModal inicializado correctamente');
         } else {
             console.error('No se encontró el elemento con ID "historyModal".');
@@ -1856,7 +1780,7 @@ function initializeEmployeeHistory() {
 
 
 
-    if(! isSaveEmployeeHistory){
+    if(!isSaveEmployeeHistory){
         isSaveEmployeeHistory = true;
         document.getElementById('historyForm').addEventListener('submit', function(event) {
     event.preventDefault();
