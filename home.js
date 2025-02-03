@@ -2335,6 +2335,8 @@ function resetModal() {
 //#############################################################################################################
 //#############################################################################################################
 
+let cargarRegistroModal = null;
+
 async function loadPlanillaModificadorBase() {
     const planillaSelect = document.getElementById('planillaMofidierSelect');
     const token = localStorage.getItem('token');
@@ -2362,16 +2364,25 @@ async function loadPlanillaModificadorBase() {
             option.textContent = `${planilla.fromDate} - ${planilla.toDate} | ${planilla.name} | ${planilla.dispositionId}`;
             planillaSelect.appendChild(option);
         });
+       cargarRegistroModal =  new bootstrap.Modal(document.getElementById('cargarRegistroModal'));
 
         planillaSelect.addEventListener('change', fetchPlanillaDetails);
         loadModifiersSelectModal();
         document.getElementById('saveModifierButton').addEventListener('click', saveModifier);
         document.getElementById('editModifierButton').addEventListener('click', updateModifier);
+
+        document.getElementById('btnGuardarNuevoRegistroModal').addEventListener('click', openModalTosave);
     } catch (error) {
         console.error('Error al cargar las planillas:', error);
         Swal.fire('Error', 'No se pudieron cargar las planillas.', 'error');
     }
 }
+
+   async function openModalTosave() {
+    cargarRegistroModal.show();
+    const form = document.getElementById('planillaModifierForm');
+    form.reset();
+   }
 
 async function loadModifiersSelectModal() {
     const modifierSelect = document.getElementById('planillaModifierNameSelect');
@@ -2404,7 +2415,6 @@ async function loadModifiersSelectModal() {
         Swal.fire('Error', 'No se pudieron cargar los modificadores salariales.', 'error');
     }
 }
-
 
 
 async function fetchPlanillaDetails() {
@@ -2543,9 +2553,8 @@ async function saveModifier() {
         }
         Swal.fire('Éxito', 'Registro guardado correctamente.', 'success');
 
-        // Close the modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('cargarRegistroModal'));
-        modal.hide();
+    
+        cargarRegistroModal.hide();
         form.reset();
         form.classList.remove('was-validated');
 
@@ -2577,8 +2586,8 @@ function openEditModal(row) {
     document.getElementById('editModifierButton').style.display = 'block';
 
     // Abrir el modal
-    const modal = new bootstrap.Modal(document.getElementById('cargarRegistroModal'));
-    modal.show();
+   
+    cargarRegistroModal.show();
 }
 
 async function updateModifier() {
@@ -2589,7 +2598,11 @@ async function updateModifier() {
     }
 
     const salaryModifierId = document.getElementById('editModifierButton').getAttribute('data-modifier-id');
-    const idPlanilla = document.getElementById('planillaModifierNameSelect').value;
+    const selectElement = document.getElementById('planillaMofidierSelect');
+    // Obtén el <option> seleccionado
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const idPlanilla = selectedOption.id;
+
     const amount = parseFloat(document.getElementById('modifierAmountInput').value);
     const type = document.getElementById('modifierTypeSelect').value;
     const token = localStorage.getItem('token');
@@ -2613,11 +2626,11 @@ async function updateModifier() {
             document.getElementById('saveModifierButton').style.display = 'block';
     document.getElementById('editModifierButton').style.display = 'none';
 
-        // Cerrar el modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('cargarRegistroModal'));
-        modal.hide();
+      
+       
         form.reset();
         form.classList.remove('was-validated');
+        cargarRegistroModal.hide();
 
         // Reload the table for the currently selected Planilla
         fetchPlanillaDetails();
@@ -3347,44 +3360,49 @@ async function viewDebts() {
         employeeDetailsTableBody.innerHTML = '';
         employeeDebts.forEach((employee, index) => {
             const row = document.createElement('tr');
-            row.innerHTML = `
-                <td><button class="btn btn-sm btn-warning employee-detail-view-debts" data-index="${index}">🔍</button></td>
-                <td>${employee.firstName}</td>
-                <td>${employee.lastName}</td>
-                <td>${employee.cuil}</td>
-                <td>${currencyFormatter.format(employee.debts[0].details.base_salary)}</td>
-                <td>${currencyFormatter.format(employee.debts[0].details.gross_salary)}</td>
-                <td>${currencyFormatter.format(employee.debts[0].capital)}</td>
-                <td>${currencyFormatter.format(employee.debts[0].interest)}</td>
-                <td>${currencyFormatter.format(employee.debts[0].interest + employee.debts[0].capital)}</td>
-                <td class="d-none">${JSON.stringify(employee.debts[0].details.applied_concepts)}</td>
-            `;
-            employeeDetailsTableBody.appendChild(row);
-        });
 
-        // Agregar evento a los botones de detalles
-employeeDetailsTableBody.querySelectorAll('.employee-detail-view-debts').forEach(button => {
-    button.addEventListener('click', (e) => {
-        const index = e.target.getAttribute('data-index');
-        const selectedConcepts = JSON.parse(e.target.closest('tr').querySelector('.d-none').textContent);
+            // Verifica si el empleado tiene deudas
+            const hasDebts = employee.debts && employee.debts.length > 0;
 
-        // Obtener referencia al tbody de la tabla de conceptos
-        const conceptsTableBody = document.querySelector('#employeeConceptsDetailsTableViewDebt tbody');
+        row.innerHTML = `
+            <td>${hasDebts ? `<button class="btn btn-sm btn-warning employee-detail-view-debts" data-index="${index}">🔍</button>` : ''}</td>
+            <td>${employee.firstName}</td>
+            <td>${employee.lastName}</td>
+            <td>${employee.cuil}</td>
+            <td>${hasDebts ? currencyFormatter.format(employee.debts[0].details.base_salary) : '0.00'}</td>
+            <td>${hasDebts ? currencyFormatter.format(employee.debts[0].details.gross_salary) : '0.00'}</td>
+            <td>${hasDebts ? currencyFormatter.format(employee.debts[0].capital) : '0.00'}</td>
+            <td>${hasDebts ? currencyFormatter.format(employee.debts[0].interest) : '0.00'}</td>
+            <td>${hasDebts ? currencyFormatter.format(employee.debts[0].interest + employee.debts[0].capital) : '0.00'}</td>
+            <td class="d-none">${hasDebts ? JSON.stringify(employee.debts[0].details.applied_concepts) : ''}</td>
+        `;
 
-        // Limpiar el contenido previo de la tabla
-        conceptsTableBody.innerHTML = '';
-
-        // Poblar la tabla con los conceptos aplicados
-        selectedConcepts.forEach(concept => {
-            const conceptRow = document.createElement('tr');
-            conceptRow.innerHTML = `
-                <td>${concept.first}</td>
-                <td>${currencyFormatter.format(concept.second)}</td>
-            `;
-            conceptsTableBody.appendChild(conceptRow);
-        });
+        employeeDetailsTableBody.appendChild(row);
     });
-});
+
+                // Agregar evento a los botones de detalles
+        employeeDetailsTableBody.querySelectorAll('.employee-detail-view-debts').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const index = e.target.getAttribute('data-index');
+                const selectedConcepts = JSON.parse(e.target.closest('tr').querySelector('.d-none').textContent);
+
+                // Obtener referencia al tbody de la tabla de conceptos
+                const conceptsTableBody = document.querySelector('#employeeConceptsDetailsTableViewDebt tbody');
+
+                // Limpiar el contenido previo de la tabla
+                conceptsTableBody.innerHTML = '';
+
+                // Poblar la tabla con los conceptos aplicados
+                selectedConcepts.forEach(concept => {
+                    const conceptRow = document.createElement('tr');
+                    conceptRow.innerHTML = `
+                        <td>${concept.first}</td>
+                        <td>${currencyFormatter.format(concept.second)}</td>
+                    `;
+                    conceptsTableBody.appendChild(conceptRow);
+                });
+            });
+        });
 
     }
 
@@ -3643,6 +3661,7 @@ async function calculateDebt() {
         employeeDetailsTableBody.innerHTML = '';
         employeeDebts.forEach((employee, index) => {
             const row = document.createElement('tr');
+            const hasDebts = employee.debts && employee.debts.length > 0;
             row.innerHTML = `
                 <td><button class="btn btn-sm btn-warning employee-detail" data-index="${index}">🔍</button></td>
                 <td>${employee.firstName}</td>
